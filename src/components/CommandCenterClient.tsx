@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { postTeamNote } from "@/app/actions/team-notes";
 import { draftOutreachEmail } from "@/app/actions/draft-email";
-import { createClient } from "@/lib/supabase/client";
+import { getCommandCenterStats } from "@/app/actions/stats";
 import { DraftEmailModal } from "./DraftEmailModal";
 import { usePodcastWorkspace } from "./PodcastWorkspaceProvider";
 import { StageBadge } from "./StageBadge";
@@ -149,33 +149,10 @@ export function CommandCenterClient({
 
   useEffect(() => {
     const fetchStats = async () => {
-      const supabase = createClient();
-
-      const { count: total } = await supabase
-        .from("sponsors")
-        .select("*", { count: "exact", head: true });
-
-      const { count: active } = await supabase
-        .from("sponsors")
-        .select("*", { count: "exact", head: true })
-        .not("stage", "in", '("New","Closed")');
-
-      const { count: meetings } = await supabase
-        .from("sponsors")
-        .select("*", { count: "exact", head: true })
-        .eq("stage", "Negotiating");
-
-      const { count: closed } = await supabase
-        .from("sponsors")
-        .select("*", { count: "exact", head: true })
-        .eq("stage", "Closed");
-
-      setStats({
-        total: total || 0,
-        active: active || 0,
-        meetings: meetings || 0,
-        closed: closed || 0,
-      });
+      const result = await getCommandCenterStats();
+      const { total, active, meetings, closed } = result;
+      console.log("Stats result:", { total, active, meetings, closed });
+      setStats(result);
     };
     void fetchStats();
   }, []);
