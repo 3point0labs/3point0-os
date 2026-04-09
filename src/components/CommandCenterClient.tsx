@@ -127,12 +127,12 @@ export function CommandCenterClient({
   const [noteTag, setNoteTag] = useState<TeamNotePodcastTag>("ONE54");
   const [noteInput, setNoteInput] = useState("");
   const [pendingNote, startNoteTransition] = useTransition();
-  const [liveStats, setLiveStats] = useState<{
-    totalTargets: number;
-    activePipeline: number;
-    meetingsSet: number;
-    dealsClosed: number;
-  } | null>(null);
+  const [stats, setStats] = useState({
+    total: 0,
+    active: 0,
+    meetings: 0,
+    closed: 0,
+  });
 
   useEffect(() => {
     setMounted(true);
@@ -148,48 +148,36 @@ export function CommandCenterClient({
   }, [sender]);
 
   useEffect(() => {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    if (!url?.trim() || !key?.trim()) return;
+    const fetchStats = async () => {
+      const supabase = createClient();
 
-    let cancelled = false;
-    const supabase = createClient();
+      const { count: total } = await supabase
+        .from("sponsors")
+        .select("*", { count: "exact", head: true });
 
-    async function fetchStats() {
-      try {
-        const [{ count: total }, { count: active }, { count: meetings }, { count: closed }] =
-          await Promise.all([
-            supabase.from("sponsors").select("*", { count: "exact", head: true }),
-            supabase
-              .from("sponsors")
-              .select("*", { count: "exact", head: true })
-              .not("stage", "in", '("New","Closed")'),
-            supabase
-              .from("sponsors")
-              .select("*", { count: "exact", head: true })
-              .eq("stage", "Negotiating"),
-            supabase
-              .from("sponsors")
-              .select("*", { count: "exact", head: true })
-              .eq("stage", "Closed"),
-          ]);
+      const { count: active } = await supabase
+        .from("sponsors")
+        .select("*", { count: "exact", head: true })
+        .not("stage", "in", '("New","Closed")');
 
-        if (cancelled) return;
-        setLiveStats({
-          totalTargets: total ?? 0,
-          activePipeline: active ?? 0,
-          meetingsSet: meetings ?? 0,
-          dealsClosed: closed ?? 0,
-        });
-      } catch (error) {
-        console.error("Failed to fetch command center stats", error);
-      }
-    }
+      const { count: meetings } = await supabase
+        .from("sponsors")
+        .select("*", { count: "exact", head: true })
+        .eq("stage", "Negotiating");
 
-    void fetchStats();
-    return () => {
-      cancelled = true;
+      const { count: closed } = await supabase
+        .from("sponsors")
+        .select("*", { count: "exact", head: true })
+        .eq("stage", "Closed");
+
+      setStats({
+        total: total || 0,
+        active: active || 0,
+        meetings: meetings || 0,
+        closed: closed || 0,
+      });
     };
+    void fetchStats();
   }, []);
 
   const workspaceSponsors = useMemo(
@@ -197,16 +185,10 @@ export function CommandCenterClient({
     [activePodcast, sponsors]
   );
 
-  const fallbackTotalTargets = workspaceSponsors.length;
-  const fallbackActivePipeline = workspaceSponsors.filter(
-    (s) => s.stage !== "Closed" && s.stage !== "New"
-  ).length;
-  const fallbackMeetingsSet = workspaceSponsors.filter((s) => s.stage === "Negotiating").length;
-  const fallbackDealsClosed = workspaceSponsors.filter((s) => s.stage === "Closed").length;
-  const totalTargets = liveStats?.totalTargets ?? fallbackTotalTargets;
-  const activePipeline = liveStats?.activePipeline ?? fallbackActivePipeline;
-  const meetingsSet = liveStats?.meetingsSet ?? fallbackMeetingsSet;
-  const dealsClosed = liveStats?.dealsClosed ?? fallbackDealsClosed;
+  const totalTargets = stats.total;
+  const activePipeline = stats.active;
+  const meetingsSet = stats.meetings;
+  const dealsClosed = stats.closed;
 
   const priorities = useMemo(() => {
     if (!mounted) {
