@@ -4,8 +4,9 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { postTeamNote } from "@/app/actions/team-notes";
 import { draftOutreachEmail } from "@/app/actions/draft-email";
-import { getCommandCenterStats, getPriorityTargets } from "@/app/actions/stats";
+import { getPriorityTargets } from "@/app/actions/stats";
 import { DraftEmailModal } from "./DraftEmailModal";
+import { TodoList } from "./TodoList";
 import { usePodcastWorkspace } from "./PodcastWorkspaceProvider";
 import { StageBadge } from "./StageBadge";
 import type { TeamNote, TeamNotePodcastTag, TeamNoteSender } from "@/lib/team-notes";
@@ -127,12 +128,6 @@ export function CommandCenterClient({
   const [noteTag, setNoteTag] = useState<TeamNotePodcastTag>("ONE54");
   const [noteInput, setNoteInput] = useState("");
   const [pendingNote, startNoteTransition] = useTransition();
-  const [stats, setStats] = useState({
-    total: 0,
-    active: 0,
-    meetings: 0,
-    closed: 0,
-  });
   const [priorityRows, setPriorityRows] = useState<Sponsor[]>([]);
 
   useEffect(() => {
@@ -149,16 +144,6 @@ export function CommandCenterClient({
   }, [sender]);
 
   useEffect(() => {
-    const fetchStats = async () => {
-      const result = await getCommandCenterStats();
-      const { total, active, meetings, closed } = result;
-      console.log("Stats result:", { total, active, meetings, closed });
-      setStats(result);
-    };
-    void fetchStats();
-  }, []);
-
-  useEffect(() => {
     const fetchPriorities = async () => {
       const rows = await getPriorityTargets();
       setPriorityRows(rows);
@@ -170,11 +155,6 @@ export function CommandCenterClient({
     () => sponsors.filter((s) => s.podcast === activePodcast),
     [activePodcast, sponsors]
   );
-
-  const totalTargets = stats.total;
-  const activePipeline = stats.active;
-  const meetingsSet = stats.meetings;
-  const dealsClosed = stats.closed;
 
   const priorities = useMemo(() => {
     if (priorityRows.length > 0) {
@@ -223,7 +203,7 @@ export function CommandCenterClient({
       })
       .slice(0, 5);
     return scored;
-  }, [workspaceSponsors, mounted]);
+  }, [workspaceSponsors, mounted, priorityRows]);
 
   const sortedNotes = useMemo(() => {
     return [...initialNotes].sort((a, b) =>
@@ -418,11 +398,32 @@ export function CommandCenterClient({
 
       <div className="grid gap-4 lg:grid-cols-[1fr_min(320px,32%)] lg:items-start lg:gap-6">
         <div className="min-w-0 space-y-4 lg:space-y-5">
-          <section className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-            <StatCard label="Total targets" value={totalTargets} />
-            <StatCard label="Active pipeline" value={activePipeline} />
-            <StatCard label="Meetings set" value={meetingsSet} />
-            <StatCard label="Deals closed" value={dealsClosed} />
+          <section className="mission-card p-4">
+            <h2 className="font-mono text-sm uppercase tracking-[0.18em] text-[var(--color-accent-eggshell)]">
+              Today&apos;s Playbook
+            </h2>
+            <p className="mt-2 text-sm text-[color-mix(in_srgb,var(--color-accent-eggshell)_88%,transparent)]">
+              {mounted ? playbookForDay(isoDay) : "—"}
+            </p>
+          </section>
+
+          <section className="mission-card p-4">
+            <h2 className="font-mono text-sm uppercase tracking-[0.18em] text-[var(--color-accent-eggshell)]">
+              Meetings
+            </h2>
+            <div className="mt-3 space-y-2">
+              {meetings.length === 0 && (
+                <p className="text-sm text-[var(--color-text-secondary)]">No upcoming sponsor calls.</p>
+              )}
+              {meetings.map((m, idx) => (
+                <div key={`${m.company}-${m.startsAt}-${idx}`} className="glass-card rounded-lg p-3">
+                  <p className="font-medium text-[var(--color-accent-eggshell)]">{m.company}</p>
+                  <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
+                    {new Date(m.startsAt).toLocaleString()}
+                  </p>
+                </div>
+              ))}
+            </div>
           </section>
 
           <section className="mission-card p-4">
@@ -489,62 +490,17 @@ export function CommandCenterClient({
             </div>
           </section>
 
-          <section className="mission-card hidden p-4 lg:block">
-            <h2 className="font-mono text-sm uppercase tracking-[0.18em] text-[var(--color-accent-eggshell)]">
-              Today&apos;s Playbook
-            </h2>
-            <p className="mt-2 text-sm text-[color-mix(in_srgb,var(--color-accent-eggshell)_88%,transparent)]">
-              {mounted ? playbookForDay(isoDay) : "—"}
-            </p>
-          </section>
-
-          <section className="mission-card p-4">
-            <h2 className="font-mono text-sm uppercase tracking-[0.18em] text-[var(--color-accent-eggshell)]">
-              Meetings
-            </h2>
-            <div className="mt-3 space-y-2">
-              {meetings.length === 0 && (
-                <p className="text-sm text-[var(--color-text-secondary)]">No upcoming sponsor calls.</p>
-              )}
-              {meetings.map((m, idx) => (
-                <div key={`${m.company}-${m.startsAt}-${idx}`} className="glass-card rounded-lg p-3">
-                  <p className="font-medium text-[var(--color-accent-eggshell)]">{m.company}</p>
-                  <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
-                    {new Date(m.startsAt).toLocaleString()}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          <details className="mission-card p-4 lg:hidden">
-            <summary className="min-h-11 cursor-pointer list-none font-mono text-sm uppercase tracking-[0.18em] text-[var(--color-accent-eggshell)] [&::-webkit-details-marker]:hidden">
-              <span className="flex items-center justify-between gap-2">
-                Today&apos;s Playbook
-                <span className="text-[var(--color-text-secondary)]">▼</span>
-              </span>
-            </summary>
-            <p className="mt-3 text-sm text-[color-mix(in_srgb,var(--color-accent-eggshell)_88%,transparent)]">
-              {mounted ? playbookForDay(isoDay) : "—"}
-            </p>
-          </details>
-
-          <div className="lg:hidden">{teamNotesSection}</div>
+          <div className="space-y-4 lg:hidden">
+            <TodoList />
+            {teamNotesSection}
+          </div>
         </div>
 
-        <aside className="hidden min-w-0 lg:block">{teamNotesSection}</aside>
+        <aside className="hidden min-w-0 space-y-4 lg:block">
+          <TodoList />
+          {teamNotesSection}
+        </aside>
       </div>
-    </div>
-  );
-}
-
-function StatCard({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="mission-card stat-card-ring p-4">
-      <p className="font-mono text-[11px] uppercase tracking-wider text-[var(--color-text-secondary)]">{label}</p>
-      <p className="mt-2 font-mono text-2xl tabular-nums text-[var(--color-accent-primary)] sm:text-3xl [text-shadow:0_0_16px_rgba(201,168,124,0.25)]">
-        {value}
-      </p>
     </div>
   );
 }
