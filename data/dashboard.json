@@ -1,0 +1,40 @@
+{
+  "clientHealth": [
+    {
+      "id": "ch-1",
+      "name": "BlueRidge Media",
+      "status": "strong",
+      "score": 92,
+      "note": "Renewal on track; high engagement on last drop."
+    },
+    {
+      "id": "ch-2",
+      "name": "Studio North",
+      "status": "watch",
+      "score": 68,
+      "note": "Delayed feedback on episode two; check in this week."
+    },
+    {
+      "id": "ch-3",
+      "name": "Echo Collective",
+      "status": "strong",
+      "score": 88,
+      "note": "Cross-promo performing above benchmark."
+    },
+    {
+      "id": "ch-4",
+      "name": "Lumen Docs",
+      "status": "at-risk",
+      "score": 45,
+      "note": "Budget freeze; propose lighter package."
+    }
+  ],
+  "contentOutput": {
+    "periodLabel": "April 2026",
+    "episodesPublished": 8,
+    "episodesTarget": 10,
+    "shortsClips": 24,
+    "newsletterIssues": 3,
+    "blogPosts": 2
+  }
+}

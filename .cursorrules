@@ -1,0 +1,30 @@
+# 3point0 OS Cursor Rules
+
+## Project
+Next.js 14 app, TypeScript, Tailwind CSS, dark mission control aesthetic.
+Operator: Marquel Martin (non-developer). Always explain changes in plain English.
+
+## Code rules
+- Functional components only, no class components
+- Always use TypeScript types
+- Keep components under 150 lines — split if larger
+- No inline styles — use Tailwind classes only
+- Always handle loading and error states
+
+## UI rules
+- Dark theme always: background #0a0e1a, text #e2e8f0
+- Primary accent: teal #00d4aa (One54), orange #f97316 (Pressbox)
+- Monospace font for all labels and headers
+- Subtle animations only — no heavy effects that slow the app
+- Mobile-friendly but desktop-first
+
+## Agent rules
+- API keys always in .env.local, never in code
+- Always check for existing data before API calls
+- Show loading states during agent operations
+- Log all agent actions to activity.json
+
+## When I ask for changes
+- Make the minimal change needed
+- Don't refactor unrelated code
+- Explain what you changed and why in 2-3 sentences

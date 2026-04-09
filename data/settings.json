@@ -1,0 +1,7 @@
+{
+  "autoDiscovery": false,
+  "frequency": "weekly",
+  "contactsPerRun": 10,
+  "podcasts": ["One54", "Pressbox Chronicles"],
+  "lastDiscoveryRunAt": null
+}
