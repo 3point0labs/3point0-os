@@ -28,6 +28,37 @@ function urgencyStyle(u: string): string {
   return "border-[rgba(138,138,122,0.45)] text-[var(--color-text-secondary)]";
 }
 
+function ViewsBar({ episodes }: { episodes: Episode[] }) {
+  if (episodes.length === 0) return null;
+  const max = Math.max(...episodes.map((e) => e.views), 1);
+  return (
+    <div className="mt-3 space-y-1.5">
+      <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--color-text-secondary)]">
+        Views performance
+      </p>
+      {[...episodes]
+        .sort((a, b) => b.views - a.views)
+        .slice(0, 5)
+        .map((ep) => (
+          <div key={ep.id} className="flex items-center gap-2">
+            <p className="w-32 shrink-0 truncate text-[10px] text-[var(--color-text-secondary)]">
+              {ep.title}
+            </p>
+            <div className="flex-1 rounded-full bg-[var(--color-bg-primary)] h-1.5 overflow-hidden">
+              <div
+                className="h-full rounded-full bg-[color:var(--accent)] transition-all duration-500"
+                style={{ width: `${Math.round((ep.views / max) * 100)}%` }}
+              />
+            </div>
+            <p className="w-12 shrink-0 text-right font-mono text-[10px] text-[var(--color-accent-eggshell)]">
+              {ep.views >= 1000 ? `${(ep.views / 1000).toFixed(1)}k` : ep.views}
+            </p>
+          </div>
+        ))}
+    </div>
+  );
+}
+
 function IntelPanel({
   activeReport,
   scanResult,
@@ -188,16 +219,15 @@ export function IntelligenceClient({
   const [reports, setReports] = useState<Record<string, IntelligenceEntry>>({});
   const [loading, setLoading] = useState(false);
   const [setupMessage, setSetupMessage] = useState<string | null>(null);
-  const [scanResult, setScanResult] = useState<
+  const [scanResult, setScanResult] = useState
     Array<{ company: string; mentions: number; reasons: string[]; category: string; urgency: string }>
   >([]);
   const [pendingScan, startScanTransition] = useTransition();
   const [pendingAnalyze, startAnalyzeTransition] = useTransition();
   const [mounted, setMounted] = useState(false);
+  const [showScanConfirm, setShowScanConfirm] = useState(false);
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => {
     setLoading(true);
@@ -205,11 +235,9 @@ export function IntelligenceClient({
     void getLatestEpisodes(activePodcast as PodcastWorkspace, 10).then((res) => {
       setLoading(false);
       if (!res.ok) {
-        if (res.missingKey) {
-          setSetupMessage("Add your YouTube API key to .env.local to enable the episode feed");
-        } else {
-          setSetupMessage(res.error);
-        }
+        setSetupMessage(res.missingKey
+          ? "Add your YouTube API key to .env.local to enable the episode feed"
+          : res.error);
         setEpisodes([]);
         setChannel(null);
         setSelectedId(null);
@@ -230,6 +258,12 @@ export function IntelligenceClient({
   );
   const activeReport = selectedId ? reports[selectedId] : undefined;
 
+  // Count uncached episodes for scan cost estimate
+  const uncachedCount = useMemo(
+    () => episodes.filter((e) => !reports[e.id]).length,
+    [episodes, reports]
+  );
+
   const totalTokenUsage = useMemo(() => {
     return Object.values(reports).reduce(
       (acc, r) => ({ input: acc.input + r.tokenUsage.input, output: acc.output + r.tokenUsage.output }),
@@ -238,8 +272,10 @@ export function IntelligenceClient({
   }, [reports]);
 
   const divider = "var(--color-border)";
+
   const epList = episodes.map((ep) => {
     const isActive = ep.id === selectedId;
+    const isCached = Boolean(reports[ep.id]);
     return (
       <button
         key={ep.id}
@@ -250,13 +286,18 @@ export function IntelligenceClient({
         }`}
       >
         <div className="glass-card flex w-[140px] flex-col overflow-hidden rounded-lg lg:w-full lg:flex-row lg:gap-3 lg:p-3">
-          <img src={ep.thumbnail} alt="" className="aspect-video w-full object-cover lg:h-[45px] lg:w-[80px] lg:shrink-0 lg:rounded" />
+          <div className="relative lg:shrink-0">
+            <img src={ep.thumbnail} alt="" className="aspect-video w-full object-cover lg:h-[45px] lg:w-[80px] lg:rounded" />
+            {isCached && (
+              <span className="absolute bottom-1 right-1 rounded bg-green-600/80 px-1 py-0.5 font-mono text-[8px] uppercase text-white">
+                ✓ cached
+              </span>
+            )}
+          </div>
           <div className="min-w-0 flex-1 p-2 lg:p-0">
-            <p
-              className={`line-clamp-2 text-xs font-medium leading-snug lg:text-sm ${
-                isActive ? "text-[var(--color-accent-primary)]" : "text-[var(--color-accent-eggshell)]"
-              }`}
-            >
+            <p className={`line-clamp-2 text-xs font-medium leading-snug lg:text-sm ${
+              isActive ? "text-[var(--color-accent-primary)]" : "text-[var(--color-accent-eggshell)]"
+            }`}>
               {ep.title}
             </p>
             <p className="mt-1 text-[10px] text-[var(--color-text-secondary)] lg:text-xs">
@@ -283,6 +324,11 @@ export function IntelligenceClient({
       <p className="mt-2 font-mono text-xs text-[var(--color-text-secondary)]">
         {mounted ? selected.views.toLocaleString() : selected.views.toString()} views ·{" "}
         {mounted ? new Date(selected.publishedAt).toLocaleString() : selected.publishedAt.slice(0, 19).replace("T", " ")}
+        {reports[selected.id] && (
+          <span className="ml-2 rounded bg-green-600/20 px-1.5 py-0.5 text-green-400 text-[10px] font-mono">
+            ✓ analyzed
+          </span>
+        )}
       </p>
       <button
         type="button"
@@ -297,8 +343,17 @@ export function IntelligenceClient({
         }
         className="btn-cta mt-4 w-full py-3 text-sm tracking-[0.12em]"
       >
-        {pendingAnalyze ? "ANALYZING…" : "ANALYZE EPISODE"}
+        {pendingAnalyze
+          ? "ANALYZING…"
+          : reports[selected.id]
+          ? "RE-ANALYZE EPISODE"
+          : "ANALYZE EPISODE"}
       </button>
+      {reports[selected.id] && (
+        <p className="mt-1 text-center font-mono text-[10px] text-[var(--color-text-secondary)]">
+          Using cached result — no tokens used
+        </p>
+      )}
     </>
   ) : (
     <div className="glass-card flex min-h-[200px] flex-col items-center justify-center rounded-lg border border-dashed border-[var(--color-border)] p-8 text-center lg:min-h-[400px]">
@@ -315,26 +370,66 @@ export function IntelligenceClient({
           <h1 className="font-mono text-lg uppercase tracking-[0.2em] text-[var(--color-accent-eggshell)] lg:text-xl">
             Broadcast Room
           </h1>
-          <button
-            type="button"
-            disabled={pendingScan || loading || episodes.length === 0}
-            onClick={() =>
-              startScanTransition(() => {
-                void scanRecentEpisodes(activePodcast as PodcastWorkspace).then((res) => {
-                  if (!res.ok) return;
-                  const nextReports: Record<string, IntelligenceEntry> = {};
-                  for (const entry of res.analyzed) nextReports[entry.videoId] = entry;
-                  setReports((prev) => ({ ...prev, ...nextReports }));
-                  setScanResult(res.opportunities);
-                });
-              })
-            }
-            className="min-h-11 rounded-md border border-[rgba(var(--accent-rgb),0.45)] bg-[rgba(var(--accent-rgb),0.1)] px-3 py-2 font-mono text-xs uppercase tracking-wider text-[color:var(--accent)] disabled:opacity-50"
-          >
-            Scan all recent episodes
-          </button>
+          <div className="relative">
+            {showScanConfirm ? (
+              <div className="flex items-center gap-2 rounded-md border border-[rgba(232,83,61,0.5)] bg-[rgba(232,83,61,0.1)] px-3 py-2">
+                <span className="font-mono text-xs text-[var(--color-accent-coral)]">
+                  {uncachedCount} new episode{uncachedCount !== 1 ? "s" : ""} — run Claude on all?
+                </span>
+                <button
+                  type="button"
+                  className="font-mono text-xs text-green-400 hover:text-green-300"
+                  onClick={() => {
+                    setShowScanConfirm(false);
+                    startScanTransition(() => {
+                      void scanRecentEpisodes(activePodcast as PodcastWorkspace).then((res) => {
+                        if (!res.ok) return;
+                        const nextReports: Record<string, IntelligenceEntry> = {};
+                        for (const entry of res.analyzed) nextReports[entry.videoId] = entry;
+                        setReports((prev) => ({ ...prev, ...nextReports }));
+                        setScanResult(res.opportunities);
+                      });
+                    });
+                  }}
+                >
+                  Confirm
+                </button>
+                <button
+                  type="button"
+                  className="font-mono text-xs text-[var(--color-text-secondary)] hover:text-[var(--color-accent-eggshell)]"
+                  onClick={() => setShowScanConfirm(false)}
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                disabled={pendingScan || loading || episodes.length === 0}
+                onClick={() => {
+                  if (uncachedCount === 0) {
+                    // All cached, run anyway
+                    startScanTransition(() => {
+                      void scanRecentEpisodes(activePodcast as PodcastWorkspace).then((res) => {
+                        if (!res.ok) return;
+                        const nextReports: Record<string, IntelligenceEntry> = {};
+                        for (const entry of res.analyzed) nextReports[entry.videoId] = entry;
+                        setReports((prev) => ({ ...prev, ...nextReports }));
+                        setScanResult(res.opportunities);
+                      });
+                    });
+                  } else {
+                    setShowScanConfirm(true);
+                  }
+                }}
+                className="min-h-11 rounded-md border border-[rgba(var(--accent-rgb),0.45)] bg-[rgba(var(--accent-rgb),0.1)] px-3 py-2 font-mono text-xs uppercase tracking-wider text-[color:var(--accent)] disabled:opacity-50"
+              >
+                {pendingScan ? "Scanning…" : `Scan all · ${uncachedCount} new`}
+              </button>
+            )}
+          </div>
         </div>
-        {(pendingScan || loading) && (
+        {pendingScan && (
           <p className="mt-2 animate-pulse font-mono text-xs uppercase tracking-wider text-[var(--color-accent-coral)]">
             SCANNING...
           </p>
@@ -346,6 +441,7 @@ export function IntelligenceClient({
           </p>
         )}
         {setupMessage && <p className="mt-2 text-sm text-[var(--color-accent-coral)]">{setupMessage}</p>}
+        {mounted && episodes.length > 0 && <ViewsBar episodes={episodes} />}
       </section>
 
       {/* Mobile */}
@@ -361,12 +457,7 @@ export function IntelligenceClient({
         </div>
         <section className="min-w-0 px-0">{playerBlock}</section>
         <section className="mission-card min-h-[220px] overflow-hidden p-0">
-          <IntelPanel
-            activeReport={activeReport}
-            scanResult={scanResult}
-            totalTokenUsage={totalTokenUsage}
-            activePodcast={activePodcast as PodcastWorkspace}
-          />
+          <IntelPanel activeReport={activeReport} scanResult={scanResult} totalTokenUsage={totalTokenUsage} activePodcast={activePodcast as PodcastWorkspace} />
         </section>
         <ProductionCalendarPanel initial={productionInitial} />
       </div>
@@ -374,16 +465,9 @@ export function IntelligenceClient({
       {/* Desktop 3-column */}
       <div
         className="hidden min-h-0 w-full min-w-0 lg:grid"
-        style={{
-          gridTemplateColumns: "25% 50% 25%",
-          height: "calc(100vh - 120px)",
-          gap: 0,
-        }}
+        style={{ gridTemplateColumns: "25% 50% 25%", height: "calc(100vh - 120px)", gap: 0 }}
       >
-        <aside
-          className="flex min-h-0 min-w-0 flex-col overflow-hidden bg-[var(--color-bg-secondary)]"
-          style={{ borderRight: `1px solid ${divider}` }}
-        >
+        <aside className="flex min-h-0 min-w-0 flex-col overflow-hidden bg-[var(--color-bg-secondary)]" style={{ borderRight: `1px solid ${divider}` }}>
           <div className="shrink-0 border-b border-[var(--color-border)] px-3 py-2 font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--color-text-secondary)]">
             Episodes · last 10
           </div>
@@ -393,6 +477,7 @@ export function IntelligenceClient({
             )}
             {episodes.map((ep) => {
               const isActive = ep.id === selectedId;
+              const isCached = Boolean(reports[ep.id]);
               return (
                 <button
                   key={ep.id}
@@ -402,13 +487,18 @@ export function IntelligenceClient({
                     isActive ? "ring-1 ring-[rgba(201,168,124,0.45)]" : "hover:brightness-110"
                   }`}
                 >
-                  <img src={ep.thumbnail} alt="" className="h-[45px] w-[80px] shrink-0 rounded object-cover" />
+                  <div className="relative shrink-0">
+                    <img src={ep.thumbnail} alt="" className="h-[45px] w-[80px] rounded object-cover" />
+                    {isCached && (
+                      <span className="absolute bottom-0.5 right-0.5 rounded bg-green-600/80 px-1 font-mono text-[8px] text-white">
+                        ✓
+                      </span>
+                    )}
+                  </div>
                   <div className="min-w-0 flex-1">
-                    <p
-                      className={`line-clamp-2 text-sm font-medium leading-snug ${
-                        isActive ? "text-[var(--color-accent-primary)]" : "text-[var(--color-accent-eggshell)]"
-                      }`}
-                    >
+                    <p className={`line-clamp-2 text-sm font-medium leading-snug ${
+                      isActive ? "text-[var(--color-accent-primary)]" : "text-[var(--color-accent-eggshell)]"
+                    }`}>
                       {ep.title}
                     </p>
                     <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
@@ -426,16 +516,8 @@ export function IntelligenceClient({
 
         <section className="flex min-h-0 min-w-0 flex-col bg-[var(--color-bg-primary)] p-4">{playerBlock}</section>
 
-        <aside
-          className="flex min-h-0 min-w-0 flex-col overflow-y-scroll bg-[var(--color-bg-secondary)]"
-          style={{ borderLeft: `1px solid ${divider}` }}
-        >
-          <IntelPanel
-            activeReport={activeReport}
-            scanResult={scanResult}
-            totalTokenUsage={totalTokenUsage}
-            activePodcast={activePodcast as PodcastWorkspace}
-          />
+        <aside className="flex min-h-0 min-w-0 flex-col overflow-y-scroll bg-[var(--color-bg-secondary)]" style={{ borderLeft: `1px solid ${divider}` }}>
+          <IntelPanel activeReport={activeReport} scanResult={scanResult} totalTokenUsage={totalTokenUsage} activePodcast={activePodcast as PodcastWorkspace} />
         </aside>
       </div>
     </div>
