@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { postTeamNote } from "@/app/actions/team-notes";
 import { draftOutreachEmail } from "@/app/actions/draft-email";
-import { getCommandCenterStats } from "@/app/actions/stats";
+import { getCommandCenterStats, getPriorityTargets } from "@/app/actions/stats";
 import { DraftEmailModal } from "./DraftEmailModal";
 import { usePodcastWorkspace } from "./PodcastWorkspaceProvider";
 import { StageBadge } from "./StageBadge";
@@ -12,7 +12,7 @@ import type { TeamNote, TeamNotePodcastTag, TeamNoteSender } from "@/lib/team-no
 import type { Sponsor } from "@/lib/types";
 
 const SENDER_KEY = "3point0.teamNoteSender";
-const SENDERS: TeamNoteSender[] = ["Marquel", "Randy", "Team"];
+const SENDERS: TeamNoteSender[] = ["Marquel", "Randy", "Andrew", "Rich", "Heather", "CJ", "Team"];
 
 type DraftState = {
   open: boolean;
@@ -133,6 +133,7 @@ export function CommandCenterClient({
     meetings: 0,
     closed: 0,
   });
+  const [priorityRows, setPriorityRows] = useState<Sponsor[]>([]);
 
   useEffect(() => {
     setMounted(true);
@@ -157,6 +158,14 @@ export function CommandCenterClient({
     void fetchStats();
   }, []);
 
+  useEffect(() => {
+    const fetchPriorities = async () => {
+      const rows = await getPriorityTargets();
+      setPriorityRows(rows);
+    };
+    void fetchPriorities();
+  }, []);
+
   const workspaceSponsors = useMemo(
     () => sponsors.filter((s) => s.podcast === activePodcast),
     [activePodcast, sponsors]
@@ -168,6 +177,17 @@ export function CommandCenterClient({
   const dealsClosed = stats.closed;
 
   const priorities = useMemo(() => {
+    if (priorityRows.length > 0) {
+      return priorityRows.slice(0, 5).map((s) => ({
+        s,
+        since: daysSince(s.lastContactDate),
+        bucket: 1,
+        p1: 1,
+        p2: 0,
+        p3: 0,
+        p4: 0,
+      }));
+    }
     if (!mounted) {
       return workspaceSponsors
         .slice()

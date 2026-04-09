@@ -3,7 +3,7 @@ import path from "path";
 
 const FILE = path.join(process.cwd(), "data", "team-notes.json");
 
-export type TeamNoteSender = "Marquel" | "Randy" | "Team";
+export type TeamNoteSender = "Marquel" | "Randy" | "Andrew" | "Rich" | "Heather" | "CJ" | "Team";
 
 /** Display badges: ONE54, PRESSBOX, or BOTH for org-wide notes */
 export type TeamNotePodcastTag = "ONE54" | "PRESSBOX" | "BOTH";
@@ -19,11 +19,12 @@ export type TeamNote = {
 function isTeamNote(x: unknown): x is TeamNote {
   if (!x || typeof x !== "object") return false;
   const o = x as Record<string, unknown>;
+  const validSenders: TeamNoteSender[] = ["Marquel", "Randy", "Andrew", "Rich", "Heather", "CJ", "Team"];
   return (
     typeof o.id === "string" &&
     typeof o.body === "string" &&
     typeof o.createdAt === "string" &&
-    (o.sender === "Marquel" || o.sender === "Randy" || o.sender === "Team") &&
+    validSenders.includes(o.sender as TeamNoteSender) &&
     (o.podcast === "ONE54" || o.podcast === "PRESSBOX" || o.podcast === "BOTH")
   );
 }
