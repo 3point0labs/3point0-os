@@ -8,8 +8,9 @@ import {
   type TeamNotePodcastTag,
   type TeamNoteSender,
 } from "@/lib/team-notes";
+import { getServerProfile } from "@/lib/auth-server";
 
-const SENDERS: TeamNoteSender[] = ["Marquel", "Randy", "Team"];
+const SENDERS: TeamNoteSender[] = ["Marquel", "Randy", "Andrew", "Rich", "Heather", "CJ", "Team"];
 const TAGS: TeamNotePodcastTag[] = ["ONE54", "PRESSBOX", "BOTH"];
 
 export async function postTeamNote(input: {
@@ -33,4 +34,17 @@ export async function postTeamNote(input: {
   await writeTeamNotes(notes);
   revalidatePath("/command");
   return { ok: true as const };
+}
+
+export async function getFilteredTeamNotes() {
+  const profile = await getServerProfile();
+  const notes = await readTeamNotes();
+
+  // Partners (Heather, CJ) only see ONE54 and BOTH tagged notes
+  if (profile?.role === "partner") {
+    return notes.filter((n) => n.podcast === "ONE54" || n.podcast === "BOTH");
+  }
+
+  // Admin and team see everything
+  return notes;
 }
