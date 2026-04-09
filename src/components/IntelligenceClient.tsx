@@ -21,6 +21,14 @@ type Episode = {
   channelTitle: string;
 };
 
+type ScanOpportunityRow = {
+  company: string;
+  mentions: number;
+  reasons: string[];
+  category: string;
+  urgency: string;
+};
+
 function urgencyStyle(u: string): string {
   if (u === "high")
     return "border-[rgba(var(--accent-rgb),0.45)] text-[color:var(--accent)]";
@@ -66,13 +74,7 @@ function IntelPanel({
   activePodcast,
 }: {
   activeReport?: IntelligenceEntry;
-  scanResult: Array<{
-    company: string;
-    mentions: number;
-    reasons: string[];
-    category: string;
-    urgency: string;
-  }>;
+  scanResult: ScanOpportunityRow[];
   totalTokenUsage: { input: number; output: number };
   activePodcast: PodcastWorkspace;
 }) {
@@ -219,9 +221,7 @@ export function IntelligenceClient({
   const [reports, setReports] = useState<Record<string, IntelligenceEntry>>({});
   const [loading, setLoading] = useState(false);
   const [setupMessage, setSetupMessage] = useState<string | null>(null);
-  const [scanResult, setScanResult] = useState
-    Array<{ company: string; mentions: number; reasons: string[]; category: string; urgency: string }>
-  >([]);
+  const [scanResult, setScanResult] = useState<ScanOpportunityRow[]>([]);
   const [pendingScan, startScanTransition] = useTransition();
   const [pendingAnalyze, startAnalyzeTransition] = useTransition();
   const [mounted, setMounted] = useState(false);
