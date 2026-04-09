@@ -9,13 +9,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <div className="flex min-h-full min-w-0 text-[var(--color-accent-eggshell)]">
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-60 shrink-0 border-r border-[var(--color-border)] bg-[color-mix(in_srgb,var(--color-bg-secondary)_94%,transparent)] backdrop-blur-md lg:flex">
         <div className="flex h-full w-full flex-col px-4 py-6">
-          <Link href="/command" className="group mb-8 block px-2">
-            <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-[var(--color-text-secondary)]">
-              3point0 Labs
-            </p>
-            <p className="mt-1 font-mono text-lg tracking-tight text-[var(--color-accent-eggshell)] transition group-hover:text-[var(--color-accent-primary)]">
-              3point0 OS
-            </p>
+          <Link href="/command" className="mb-8 flex flex-col items-center py-2">
+            <img src="/logo.png" alt="3point0 Labs" className="h-10 w-auto" />
             <p className="mt-0.5 text-sm text-[var(--color-text-secondary)]">Mission Control</p>
           </Link>
           <PodcastSwitcher variant="sidebar" />

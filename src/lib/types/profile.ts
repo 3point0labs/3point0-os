@@ -6,5 +6,6 @@ export type Profile = {
   name: string | null;
   role: UserRole;
   podcast_access: string[];
+  gmail_connected?: boolean;
   created_at?: string;
 };

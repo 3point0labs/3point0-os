@@ -55,9 +55,8 @@ export function LoginForm() {
   return (
     <div className="login-card w-full max-w-md rounded-xl p-8 shadow-[0_8px_40px_rgba(0,0,0,0.45)]">
       <div className="text-center">
-        <p className="font-mono text-2xl font-semibold tracking-tight text-[#c9a87c]">3P0.OS</p>
-        <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.35em] text-[var(--color-text-secondary)]">
-          Mission control
+        <p className="mt-6 font-mono text-[10px] uppercase tracking-[0.35em] text-[var(--color-text-secondary)]">
+          Mission Control
         </p>
       </div>
 

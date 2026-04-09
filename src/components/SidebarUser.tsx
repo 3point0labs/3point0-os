@@ -1,11 +1,26 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { roleCanUseSettings } from "@/lib/access";
 
 export function SidebarUser() {
-  const { user, profile, loading, signOut } = useAuth();
+  const router = useRouter();
+  const { user, profile, loading } = useAuth();
+
+  const handleSignOut = async () => {
+    try {
+      const supabase = createClient();
+      await supabase.auth.signOut();
+    } catch (error) {
+      console.error("Failed to sign out", error);
+    } finally {
+      router.push("/login");
+      router.refresh();
+    }
+  };
 
   if (loading) {
     return (
@@ -37,7 +52,7 @@ export function SidebarUser() {
       </div>
       <button
         type="button"
-        onClick={() => void signOut()}
+        onClick={() => void handleSignOut()}
         className="mt-3 w-full min-h-[44px] rounded-lg border border-[var(--color-border)] px-3 py-2 font-mono text-[10px] uppercase tracking-wider text-[var(--color-text-secondary)] transition hover:border-[var(--color-border-strong)] hover:text-[var(--color-accent-eggshell)]"
       >
         Sign out

@@ -6,8 +6,10 @@ import { findBestContact } from "@/app/actions/find-contact";
 import { draftOutreachEmail } from "@/app/actions/draft-email";
 import {
   addSponsor,
+  checkSponsorReplies,
   importSponsorsFromCsv,
   moveSponsorStage,
+  scheduleSponsorCall,
   updateSponsor,
 } from "@/app/actions/sponsors";
 import { SPONSOR_CATEGORIES } from "@/lib/categories";
@@ -22,6 +24,8 @@ type DraftState = {
   open: boolean;
   title: string;
   body: string;
+  toEmail: string;
+  subject: string;
   recommendedChannel: string;
   channelReason: string;
   attachDeck: boolean;
@@ -64,12 +68,25 @@ type QuickEditState = {
   pitch_angle: string;
 };
 
+type ScheduleState = {
+  open: boolean;
+  sponsorId: string;
+  company: string;
+  contactName: string;
+  email: string;
+  podcast: string;
+  dateTimeLocal: string;
+  durationMins: number;
+};
+
 const CATEGORIES = SPONSOR_CATEGORIES;
 
 const initialDraft: DraftState = {
   open: false,
   title: "",
   body: "",
+  toEmail: "",
+  subject: "",
   recommendedChannel: "",
   channelReason: "",
   attachDeck: false,
@@ -96,6 +113,17 @@ const initialQuickEdit: QuickEditState = {
   tier: "B",
   category: "Financial",
   pitch_angle: "",
+};
+
+const initialSchedule: ScheduleState = {
+  open: false,
+  sponsorId: "",
+  company: "",
+  contactName: "",
+  email: "",
+  podcast: "",
+  dateTimeLocal: "",
+  durationMins: 30,
 };
 
 function mapStatus(status: string) {
@@ -239,6 +267,23 @@ function tierClass(tier?: string) {
   return "border-[rgba(138,138,122,0.4)] bg-[rgba(138,138,122,0.1)] text-[var(--color-text-secondary)]";
 }
 
+function toGoogleCalendarDate(iso: string) {
+  return iso.replaceAll("-", "").replaceAll(":", "").split(".")[0] + "Z";
+}
+
+function localInputDefault() {
+  const dt = new Date();
+  dt.setMinutes(dt.getMinutes() + 30);
+  dt.setSeconds(0, 0);
+  const pad = (v: number) => String(v).padStart(2, "0");
+  const y = dt.getFullYear();
+  const m = pad(dt.getMonth() + 1);
+  const d = pad(dt.getDate());
+  const hh = pad(dt.getHours());
+  const mm = pad(dt.getMinutes());
+  return `${y}-${m}-${d}T${hh}:${mm}`;
+}
+
 export type PartnershipsScopeFilter = "all" | "One54" | "Pressbox Chronicles";
 
 export function SponsorsClient({
@@ -281,6 +326,8 @@ export function SponsorsClient({
   const [findError, setFindError] = useState<string | null>(null);
   const [findRationale, setFindRationale] = useState<string>("");
   const [quickEdit, setQuickEdit] = useState<QuickEditState>(initialQuickEdit);
+  const [schedule, setSchedule] = useState<ScheduleState>(initialSchedule);
+  const [replyCheckResult, setReplyCheckResult] = useState<string>("");
 
   const [draft, setDraft] = useState<DraftState>(initialDraft);
 
@@ -289,6 +336,8 @@ export function SponsorsClient({
       open: true,
       title: `${sponsor.contactName} · ${sponsor.company}`,
       body: "",
+      toEmail: sponsor.email,
+      subject: `${sponsor.company} x ${sponsor.podcast} sponsorship`,
       recommendedChannel: "",
       channelReason: "",
       attachDeck: false,
@@ -429,6 +478,8 @@ export function SponsorsClient({
         onClose={() => setDraft(initialDraft)}
         title={draft.title}
         body={draft.body}
+        toEmail={draft.toEmail}
+        subject={draft.subject}
         recommendedChannel={draft.recommendedChannel}
         channelReason={draft.channelReason}
         attachDeck={draft.attachDeck}
@@ -437,6 +488,39 @@ export function SponsorsClient({
         }
         loading={draft.loading}
         error={draft.error}
+      />
+
+      <ScheduleCallModal
+        open={schedule.open}
+        data={schedule}
+        onClose={() => setSchedule(initialSchedule)}
+        onChange={(next) => setSchedule((s) => ({ ...s, ...next }))}
+        onConfirm={() =>
+          startTransition(() => {
+            if (!schedule.dateTimeLocal) return
+            const start = new Date(schedule.dateTimeLocal)
+            const end = new Date(start.getTime() + schedule.durationMins * 60 * 1000)
+            const startIso = start.toISOString()
+            const endIso = end.toISOString()
+            const text = `Sponsor call — ${schedule.company}`
+            const details = `${schedule.contactName} · ${schedule.email}\nPodcast: ${schedule.podcast}`
+            const url =
+              "https://calendar.google.com/calendar/render?action=TEMPLATE" +
+              `&text=${encodeURIComponent(text)}` +
+              `&details=${encodeURIComponent(details)}` +
+              `&dates=${toGoogleCalendarDate(startIso)}/${toGoogleCalendarDate(endIso)}`
+            window.open(url, "_blank", "noopener,noreferrer")
+            void scheduleSponsorCall(schedule.sponsorId, startIso).then((res) => {
+              if (!res.ok) return
+              setSponsors((prev) =>
+                prev.map((s) => (s.id === schedule.sponsorId ? { ...s, scheduled_call_date: startIso } : s))
+              )
+              setSchedule(initialSchedule)
+              router.refresh()
+            })
+          })
+        }
+        pending={pending}
       />
 
       <CsvImportModal
@@ -587,6 +671,25 @@ export function SponsorsClient({
           <div className="flex w-full flex-col gap-2 lg:w-auto lg:flex-row lg:flex-wrap">
             <button
               type="button"
+              onClick={() =>
+                startTransition(() => {
+                  setReplyCheckResult("Checking Gmail replies...");
+                  void checkSponsorReplies().then((res) => {
+                    if (!res.ok) {
+                      setReplyCheckResult(res.error);
+                      return;
+                    }
+                    setReplyCheckResult(`Checked ${res.checked} contacts, matched ${res.matched} replies`);
+                    router.refresh();
+                  });
+                })
+              }
+              className="min-h-11 w-full rounded-lg border border-[rgba(0,212,170,0.45)] bg-[rgba(0,212,170,0.12)] px-3 py-2 font-mono text-xs uppercase tracking-wider text-[#00d4aa] hover:bg-[rgba(0,212,170,0.2)] lg:w-auto lg:min-h-0 lg:py-1.5"
+            >
+              ↻ Check replies
+            </button>
+            <button
+              type="button"
               onClick={() => setDiscoverOpen(true)}
               className="min-h-11 w-full rounded-lg border border-[var(--color-border-strong)] bg-transparent px-3 py-2 font-mono text-xs uppercase tracking-wider text-[var(--color-accent-primary)] hover:bg-[rgba(201,168,124,0.08)] lg:w-auto lg:min-h-0 lg:py-1.5"
             >
@@ -642,6 +745,7 @@ export function SponsorsClient({
         </div>
 
         {importError && <p className="mt-3 text-xs text-red-300">{importError}</p>}
+        {replyCheckResult && <p className="mt-3 text-xs text-[var(--color-text-secondary)]">{replyCheckResult}</p>}
         {importResult && (
           <p className="mt-3 text-xs text-[var(--color-text-secondary)]">
             Import complete:{" "}
@@ -764,6 +868,24 @@ export function SponsorsClient({
                     </div>
                     <button type="button" onClick={() => openDraft(s)} className="btn-cta mt-3 w-full">
                       &gt; RUN AGENT
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setSchedule({
+                          open: true,
+                          sponsorId: s.id,
+                          company: s.company,
+                          contactName: s.contactName,
+                          email: s.email,
+                          podcast: s.podcast,
+                          dateTimeLocal: localInputDefault(),
+                          durationMins: 30,
+                        })
+                      }
+                      className="mt-2 min-h-11 w-full rounded-md border border-[rgba(201,168,124,0.45)] bg-[rgba(201,168,124,0.1)] py-2 font-mono text-[10px] uppercase tracking-wider text-[var(--color-accent-primary)] hover:bg-[rgba(201,168,124,0.2)]"
+                    >
+                      📅 Schedule call
                     </button>
                     <button
                       type="button"
@@ -982,6 +1104,70 @@ function QuickEditModal({
       </div>
     </div>
   );
+}
+
+function ScheduleCallModal({
+  open,
+  data,
+  onClose,
+  onChange,
+  onConfirm,
+  pending,
+}: {
+  open: boolean
+  data: ScheduleState
+  onClose: () => void
+  onChange: (next: Partial<ScheduleState>) => void
+  onConfirm: () => void
+  pending: boolean
+}) {
+  if (!open) return null
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <button className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
+      <div className="glass-card relative z-10 w-full max-w-lg rounded-xl p-4">
+        <h3 className="font-mono text-sm uppercase tracking-[0.2em] text-[var(--color-accent-eggshell)]">
+          Schedule Sponsor Call
+        </h3>
+        <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
+          {data.company} · {data.contactName}
+        </p>
+        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+          <input
+            type="datetime-local"
+            className={inputClass}
+            value={data.dateTimeLocal}
+            onChange={(e) => onChange({ dateTimeLocal: e.target.value })}
+          />
+          <select
+            className={inputClass}
+            value={data.durationMins}
+            onChange={(e) => onChange({ durationMins: Number(e.target.value) })}
+          >
+            <option value={30}>30 min</option>
+            <option value={45}>45 min</option>
+            <option value={60}>60 min</option>
+          </select>
+        </div>
+        <div className="mt-4 flex justify-end gap-2">
+          <button
+            onClick={onClose}
+            className="min-h-11 rounded-md border border-[var(--color-border)] px-3 py-2 font-mono text-xs text-[var(--color-text-secondary)] lg:min-h-0 lg:py-1.5"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={pending || !data.dateTimeLocal}
+            className="min-h-11 rounded-md border border-[rgba(201,168,124,0.45)] bg-[rgba(201,168,124,0.1)] px-3 py-2 font-mono text-xs uppercase tracking-wider text-[var(--color-accent-primary)] hover:bg-[rgba(201,168,124,0.2)] disabled:opacity-50 lg:min-h-0 lg:py-1.5"
+          >
+            Create calendar draft
+          </button>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 const inputClass =

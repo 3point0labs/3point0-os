@@ -44,3 +44,11 @@ $$ language plpgsql security definer;
 create or replace trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure handle_new_user();
+
+-- Optional: track whether user has connected Gmail in-app
+alter table profiles add column if not exists gmail_connected boolean default false;
+
+-- Sponsors table additions for Gmail/Calendar workflows
+alter table sponsors add column if not exists scheduled_call_date timestamptz;
+alter table sponsors add column if not exists gmail_thread_id text;
+alter table sponsors add column if not exists last_reply_date timestamptz;

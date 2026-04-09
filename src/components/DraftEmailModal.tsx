@@ -7,6 +7,8 @@ type Props = {
   onClose: () => void;
   title: string;
   body: string;
+  toEmail?: string;
+  subject?: string;
   recommendedChannel?: string;
   channelReason?: string;
   attachDeck: boolean;
@@ -20,6 +22,8 @@ export function DraftEmailModal({
   onClose,
   title,
   body,
+  toEmail,
+  subject,
   recommendedChannel,
   channelReason,
   attachDeck,
@@ -28,6 +32,11 @@ export function DraftEmailModal({
   error,
 }: Props) {
   const [copied, setCopied] = useState(false);
+  const displayBody =
+    body +
+    (attachDeck
+      ? "\n\nHappy to share our media kit / deck if that would be helpful context."
+      : "");
 
   useEffect(() => {
     if (!open) return;
@@ -58,13 +67,17 @@ export function DraftEmailModal({
     }
   }, [attachDeck, body]);
 
-  if (!open) return null;
+  const handleOpenGmailCompose = useCallback(() => {
+    if (!toEmail) return;
+    const composeSubject = subject || title || "Sponsor outreach";
+    const composeBody = displayBody || "";
+    const href = `mailto:${encodeURIComponent(toEmail)}?subject=${encodeURIComponent(
+      composeSubject
+    )}&body=${encodeURIComponent(composeBody)}`;
+    window.open(href, "_blank", "noopener,noreferrer");
+  }, [displayBody, subject, title, toEmail]);
 
-  const displayBody =
-    body +
-    (attachDeck
-      ? "\n\nHappy to share our media kit / deck if that would be helpful context."
-      : "");
+  if (!open) return null;
 
   return (
     <div
@@ -140,6 +153,17 @@ export function DraftEmailModal({
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
+              onClick={handleOpenGmailCompose}
+              disabled={loading || !body || !!error || !toEmail}
+              className="min-h-11 rounded-lg border border-[rgba(232,83,61,0.45)] bg-[rgba(232,83,61,0.12)] px-4 py-2 font-mono text-xs uppercase tracking-wider text-[var(--color-accent-coral)] transition hover:bg-[rgba(232,83,61,0.2)] disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <span className="inline-flex items-center gap-2">
+                <GmailIcon />
+                Send via Gmail
+              </span>
+            </button>
+            <button
+              type="button"
               onClick={copy}
               disabled={loading || !body || !!error}
               className="btn-cta disabled:cursor-not-allowed disabled:opacity-40"
@@ -157,5 +181,16 @@ export function DraftEmailModal({
         </div>
       </div>
     </div>
+  );
+}
+
+function GmailIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden>
+      <path
+        fill="currentColor"
+        d="M20 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2m0 4.24-8 5-8-5V6l8 5 8-5z"
+      />
+    </svg>
   );
 }

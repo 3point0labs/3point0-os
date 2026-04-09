@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { postTeamNote } from "@/app/actions/team-notes";
 import { draftOutreachEmail } from "@/app/actions/draft-email";
+import { createClient } from "@/lib/supabase/client";
 import { DraftEmailModal } from "./DraftEmailModal";
 import { usePodcastWorkspace } from "./PodcastWorkspaceProvider";
 import { StageBadge } from "./StageBadge";
@@ -17,6 +18,8 @@ type DraftState = {
   open: boolean;
   title: string;
   body: string;
+  toEmail: string;
+  subject: string;
   attachDeck: boolean;
   loading: boolean;
   error: string | null;
@@ -28,6 +31,8 @@ const initialDraft: DraftState = {
   open: false,
   title: "",
   body: "",
+  toEmail: "",
+  subject: "",
   attachDeck: false,
   loading: false,
   error: null,
@@ -106,9 +111,11 @@ function formatClock(d: Date) {
 export function CommandCenterClient({
   sponsors,
   initialNotes,
+  meetings,
 }: {
   sponsors: Sponsor[];
   initialNotes: TeamNote[];
+  meetings: { company: string; startsAt: string; source: "calendar_mcp" | "sponsors" }[];
 }) {
   const router = useRouter();
   const [draft, setDraft] = useState<DraftState>(initialDraft);
@@ -120,6 +127,12 @@ export function CommandCenterClient({
   const [noteTag, setNoteTag] = useState<TeamNotePodcastTag>("ONE54");
   const [noteInput, setNoteInput] = useState("");
   const [pendingNote, startNoteTransition] = useTransition();
+  const [liveStats, setLiveStats] = useState<{
+    totalTargets: number;
+    activePipeline: number;
+    meetingsSet: number;
+    dealsClosed: number;
+  } | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -134,17 +147,66 @@ export function CommandCenterClient({
     window.localStorage.setItem(SENDER_KEY, sender);
   }, [sender]);
 
+  useEffect(() => {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    if (!url?.trim() || !key?.trim()) return;
+
+    let cancelled = false;
+    const supabase = createClient();
+
+    async function fetchStats() {
+      try {
+        const [{ count: total }, { count: active }, { count: meetings }, { count: closed }] =
+          await Promise.all([
+            supabase.from("sponsors").select("*", { count: "exact", head: true }),
+            supabase
+              .from("sponsors")
+              .select("*", { count: "exact", head: true })
+              .not("stage", "in", '("New","Closed")'),
+            supabase
+              .from("sponsors")
+              .select("*", { count: "exact", head: true })
+              .eq("stage", "Negotiating"),
+            supabase
+              .from("sponsors")
+              .select("*", { count: "exact", head: true })
+              .eq("stage", "Closed"),
+          ]);
+
+        if (cancelled) return;
+        setLiveStats({
+          totalTargets: total ?? 0,
+          activePipeline: active ?? 0,
+          meetingsSet: meetings ?? 0,
+          dealsClosed: closed ?? 0,
+        });
+      } catch (error) {
+        console.error("Failed to fetch command center stats", error);
+      }
+    }
+
+    void fetchStats();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const workspaceSponsors = useMemo(
     () => sponsors.filter((s) => s.podcast === activePodcast),
     [activePodcast, sponsors]
   );
 
-  const totalTargets = workspaceSponsors.length;
-  const activePipeline = workspaceSponsors.filter(
+  const fallbackTotalTargets = workspaceSponsors.length;
+  const fallbackActivePipeline = workspaceSponsors.filter(
     (s) => s.stage !== "Closed" && s.stage !== "New"
   ).length;
-  const meetingsSet = workspaceSponsors.filter((s) => s.stage === "Negotiating").length;
-  const dealsClosed = workspaceSponsors.filter((s) => s.stage === "Closed").length;
+  const fallbackMeetingsSet = workspaceSponsors.filter((s) => s.stage === "Negotiating").length;
+  const fallbackDealsClosed = workspaceSponsors.filter((s) => s.stage === "Closed").length;
+  const totalTargets = liveStats?.totalTargets ?? fallbackTotalTargets;
+  const activePipeline = liveStats?.activePipeline ?? fallbackActivePipeline;
+  const meetingsSet = liveStats?.meetingsSet ?? fallbackMeetingsSet;
+  const dealsClosed = liveStats?.dealsClosed ?? fallbackDealsClosed;
 
   const priorities = useMemo(() => {
     if (!mounted) {
@@ -200,6 +262,8 @@ export function CommandCenterClient({
       ...initialDraft,
       open: true,
       title: `${s.contactName} · ${s.company}`,
+      toEmail: s.email,
+      subject: `${s.company} x ${s.podcast} sponsorship`,
       loading: true,
     });
     void draftOutreachEmail(s.id).then((res) => {
@@ -319,6 +383,8 @@ export function CommandCenterClient({
         onClose={() => setDraft(initialDraft)}
         title={draft.title}
         body={draft.body}
+        toEmail={draft.toEmail}
+        subject={draft.subject}
         recommendedChannel={draft.recommendedChannel}
         channelReason={draft.channelReason}
         attachDeck={draft.attachDeck}
@@ -451,6 +517,25 @@ export function CommandCenterClient({
             <p className="mt-2 text-sm text-[color-mix(in_srgb,var(--color-accent-eggshell)_88%,transparent)]">
               {mounted ? playbookForDay(isoDay) : "—"}
             </p>
+          </section>
+
+          <section className="mission-card p-4">
+            <h2 className="font-mono text-sm uppercase tracking-[0.18em] text-[var(--color-accent-eggshell)]">
+              Meetings
+            </h2>
+            <div className="mt-3 space-y-2">
+              {meetings.length === 0 && (
+                <p className="text-sm text-[var(--color-text-secondary)]">No upcoming sponsor calls.</p>
+              )}
+              {meetings.map((m, idx) => (
+                <div key={`${m.company}-${m.startsAt}-${idx}`} className="glass-card rounded-lg p-3">
+                  <p className="font-medium text-[var(--color-accent-eggshell)]">{m.company}</p>
+                  <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
+                    {new Date(m.startsAt).toLocaleString()}
+                  </p>
+                </div>
+              ))}
+            </div>
           </section>
 
           <details className="mission-card p-4 lg:hidden">

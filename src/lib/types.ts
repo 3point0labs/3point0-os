@@ -31,6 +31,9 @@ export type Sponsor = {
   lastContactDate: string;
   nextAction: string;
   notes: string;
+  scheduled_call_date?: string;
+  gmail_thread_id?: string;
+  last_reply_date?: string;
 };
 
 export type ClientHealthStatus = "strong" | "watch" | "at-risk";

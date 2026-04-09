@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { randomUUID } from "crypto";
 import Anthropic from "@anthropic-ai/sdk";
 import { getSponsors, saveSponsors } from "@/lib/data";
+import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import type { Podcast, Sponsor, Stage } from "@/lib/types";
 import { PODCASTS, STAGES } from "@/lib/types";
 
@@ -16,6 +17,7 @@ function isPodcast(p: string): p is Podcast {
 }
 
 const MODEL = "claude-sonnet-4-20250514";
+const GMAIL_MCP_SERVER = process.env.GMAIL_MCP_SERVER_URL;
 
 function cleanUrl(value: string) {
   const v = value.trim();
@@ -63,6 +65,36 @@ Use full URLs. If unknown, use empty string.`;
     };
   } catch {
     return {};
+  }
+}
+
+type GmailReplyMatch = {
+  email: string;
+  last_reply_date?: string;
+  gmail_thread_id?: string;
+};
+
+type SponsorMeeting = {
+  company: string;
+  startsAt: string;
+  source: "calendar_mcp" | "sponsors";
+};
+
+function parseJsonBlock(text: string) {
+  const cleaned = text.trim().replace(/^```json\s*/i, "").replace(/```$/i, "").trim();
+  return JSON.parse(cleaned);
+}
+
+async function markGmailConnectedForCurrentUser() {
+  try {
+    const supabase = await createSupabaseServerClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return;
+    await supabase.from("profiles").update({ gmail_connected: true }).eq("id", user.id);
+  } catch {
+    // Best-effort only, schema may not yet include gmail_connected.
   }
 }
 
@@ -115,6 +147,9 @@ export async function addSponsor(formData: FormData) {
     lastContactDate,
     nextAction,
     notes,
+    scheduled_call_date: undefined,
+    gmail_thread_id: undefined,
+    last_reply_date: undefined,
   };
   sponsors.push(next);
   await saveSponsors(sponsors);
@@ -172,6 +207,10 @@ export async function updateSponsor(formData: FormData) {
     lastContactDate: lastContactDate || sponsors[idx].lastContactDate,
     nextAction: nextAction || sponsors[idx].nextAction,
     notes: notes || sponsors[idx].notes,
+    scheduled_call_date:
+      String(formData.get("scheduled_call_date") ?? "").trim() || sponsors[idx].scheduled_call_date,
+    gmail_thread_id: String(formData.get("gmail_thread_id") ?? "").trim() || sponsors[idx].gmail_thread_id,
+    last_reply_date: String(formData.get("last_reply_date") ?? "").trim() || sponsors[idx].last_reply_date,
   };
   await saveSponsors(sponsors);
   revalidatePath("/partnerships");
@@ -282,6 +321,9 @@ export async function importSponsorsFromCsv(
       company_linkedin: socials.company_linkedin,
       company_twitter: socials.company_twitter,
       company_instagram: socials.company_instagram,
+      scheduled_call_date: undefined,
+      gmail_thread_id: undefined,
+      last_reply_date: undefined,
     };
     sponsors.push(next);
     existing.add(dedupeKey);
@@ -304,4 +346,148 @@ export async function moveSponsorStage(id: string, stage: Stage) {
   revalidatePath("/partnerships");
   revalidatePath("/command");
   return { ok: true as const };
+}
+
+export async function scheduleSponsorCall(id: string, scheduledAtIso: string) {
+  const sponsors = await getSponsors();
+  const idx = sponsors.findIndex((s) => s.id === id);
+  if (idx === -1) return { ok: false as const, error: "Sponsor not found." };
+  sponsors[idx] = { ...sponsors[idx], scheduled_call_date: scheduledAtIso };
+  await saveSponsors(sponsors);
+  revalidatePath("/partnerships");
+  revalidatePath("/command");
+  return { ok: true as const };
+}
+
+export async function checkSponsorReplies() {
+  const sponsors = await getSponsors();
+  const emails = sponsors
+    .map((s) => s.email.trim().toLowerCase())
+    .filter((e) => e.length > 0);
+
+  if (!emails.length) {
+    return { ok: true as const, checked: 0, matched: 0 };
+  }
+
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey?.trim()) {
+    return { ok: false as const, error: "ANTHROPIC_API_KEY is missing." };
+  }
+
+  try {
+    const client = new Anthropic({ apiKey });
+    const prompt = [
+      "You are connected to Gmail MCP tools.",
+      "Use gmail_search_messages to find sponsor replies from these sender emails:",
+      emails.join(", "),
+      'Return strict JSON only: {"matches":[{"email":"", "last_reply_date":"ISO-8601", "gmail_thread_id":""}]}',
+      "Only include matches where a reply exists.",
+    ].join("\n");
+
+    const response = await client.messages.create({
+      model: MODEL,
+      max_tokens: 2000,
+      stream: false,
+      messages: [{ role: "user", content: prompt }],
+      // Passed through for MCP-enabled Anthropic runtime integrations.
+      ...(GMAIL_MCP_SERVER
+        ? ({
+            mcp_servers: [{ type: "url", url: GMAIL_MCP_SERVER, name: "gmail" }],
+          } as Record<string, unknown>)
+        : {}),
+    } as Anthropic.Messages.MessageCreateParams);
+
+    const blocks = "content" in response ? response.content : [];
+    const text = blocks.map((b) => (b.type === "text" ? b.text : "")).join("\n");
+    const parsed = parseJsonBlock(text) as { matches?: GmailReplyMatch[] };
+    const matches = parsed.matches ?? [];
+
+    if (!matches.length) {
+      return { ok: true as const, checked: emails.length, matched: 0 };
+    }
+
+    const nowIso = new Date().toISOString();
+    let matched = 0;
+    const updated = sponsors.map((s) => {
+      const hit = matches.find((m) => m.email.trim().toLowerCase() === s.email.trim().toLowerCase());
+      if (!hit) return s;
+      matched += 1;
+      return {
+        ...s,
+        stage: "Contacted" as Stage,
+        last_reply_date: hit.last_reply_date || nowIso,
+        gmail_thread_id: hit.gmail_thread_id || s.gmail_thread_id,
+      };
+    });
+
+    if (matched > 0) {
+      await saveSponsors(updated);
+      await markGmailConnectedForCurrentUser();
+      revalidatePath("/partnerships");
+      revalidatePath("/command");
+    }
+
+    return { ok: true as const, checked: emails.length, matched };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to check Gmail replies.";
+    return { ok: false as const, error: message };
+  }
+}
+
+export async function getUpcomingSponsorMeetings() {
+  const sponsors = await getSponsors();
+  const now = Date.now();
+  const fromSponsors: SponsorMeeting[] = sponsors
+    .filter((s) => s.scheduled_call_date)
+    .map((s) => ({
+      company: s.company,
+      startsAt: String(s.scheduled_call_date),
+      source: "sponsors" as const,
+    }))
+    .filter((m) => {
+      const t = Date.parse(m.startsAt);
+      return Number.isFinite(t) && t >= now;
+    });
+
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const calendarMcp = process.env.GCAL_MCP_SERVER_URL;
+  if (!apiKey?.trim() || !calendarMcp?.trim()) {
+    return fromSponsors.sort((a, b) => Date.parse(a.startsAt) - Date.parse(b.startsAt)).slice(0, 8);
+  }
+
+  try {
+    const client = new Anthropic({ apiKey });
+    const res = await client.messages.create({
+      model: MODEL,
+      max_tokens: 1200,
+      stream: false,
+      messages: [
+        {
+          role: "user",
+          content:
+            'Use Google Calendar MCP to list upcoming events with "Sponsor call" in the title. Return strict JSON: {"events":[{"company":"", "startsAt":"ISO-8601"}]}',
+        },
+      ],
+      ...(calendarMcp
+        ? ({
+            mcp_servers: [{ type: "url", url: calendarMcp, name: "google_calendar" }],
+          } as Record<string, unknown>)
+        : {}),
+    } as Anthropic.Messages.MessageCreateParams);
+
+    const blocks = "content" in res ? res.content : [];
+    const text = blocks.map((b) => (b.type === "text" ? b.text : "")).join("\n");
+    const parsed = parseJsonBlock(text) as { events?: { company: string; startsAt: string }[] };
+    const fromMcp: SponsorMeeting[] = (parsed.events ?? []).map((e) => ({
+      company: e.company,
+      startsAt: e.startsAt,
+      source: "calendar_mcp",
+    }));
+    return [...fromMcp, ...fromSponsors]
+      .filter((m) => Number.isFinite(Date.parse(m.startsAt)))
+      .sort((a, b) => Date.parse(a.startsAt) - Date.parse(b.startsAt))
+      .slice(0, 8);
+  } catch {
+    return fromSponsors.sort((a, b) => Date.parse(a.startsAt) - Date.parse(b.startsAt)).slice(0, 8);
+  }
 }
