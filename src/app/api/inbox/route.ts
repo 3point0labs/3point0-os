@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
-// This route fetches emails via the Gmail MCP on the server
-// by calling the Anthropic API with Gmail MCP tools enabled
 export async function GET() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -22,8 +20,7 @@ export async function GET() {
       },
       body: JSON.stringify({
         model: "claude-haiku-4-5-20251001",
-        max_tokens: 1000,
-        tools: [],
+        max_tokens: 2000,
         mcp_servers: [
           {
             type: "url",
@@ -34,23 +31,45 @@ export async function GET() {
         messages: [
           {
             role: "user",
-            content: `Search Gmail for recent emails to or from inquiries@one54africa.com. Return the last 8 messages as JSON array with fields: messageId, threadId, from, subject, snippet, date, isUnread. Only return the JSON array, nothing else.`,
+            content: `Search Gmail for the 8 most recent emails that involve inquiries@one54africa.com — either sent to that address or received from it, or where you were CC'd on threads involving that address. Use the query: "inquiries@one54africa.com"
+
+Return ONLY a valid JSON array, no other text, no markdown. Each object must have exactly these fields:
+- messageId (string)
+- threadId (string)  
+- from (string)
+- subject (string)
+- snippet (string, max 200 chars)
+- date (string, ISO format)
+- isUnread (boolean)
+
+Example: [{"messageId":"abc","threadId":"xyz","from":"someone@example.com","subject":"Hello","snippet":"Brief preview...","date":"2026-04-09T10:00:00Z","isUnread":true}]`,
           },
         ],
       }),
     });
 
     const data = await response.json();
-    const text = data.content?.map((b: { type: string; text?: string }) => b.type === "text" ? b.text : "").join("") ?? "[]";
 
+    // Extract text from response
+    const text = (data.content ?? [])
+      .map((b: { type: string; text?: string }) => (b.type === "text" ? b.text : ""))
+      .join("")
+      .trim();
+
+    // Parse JSON array from response
     let emails = [];
     try {
       const match = text.match(/\[[\s\S]*\]/);
-      if (match) emails = JSON.parse(match[0]);
-    } catch { /* ignore */ }
+      if (match) {
+        emails = JSON.parse(match[0]);
+      }
+    } catch {
+      console.error("Failed to parse emails JSON:", text.slice(0, 500));
+    }
 
     return NextResponse.json({ emails });
   } catch (e) {
+    console.error("Inbox route error:", e);
     return NextResponse.json({ error: String(e) }, { status: 500 });
   }
 }
