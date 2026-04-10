@@ -2,18 +2,14 @@
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { postTeamNote } from "@/app/actions/team-notes";
 import { draftOutreachEmail } from "@/app/actions/draft-email";
 import { getPriorityTargets } from "@/app/actions/stats";
 import { DraftEmailModal } from "./DraftEmailModal";
 import { TodoList } from "./TodoList";
+import { PodcastInbox } from "./PodcastInbox";
 import { usePodcastWorkspace } from "./PodcastWorkspaceProvider";
 import { StageBadge } from "./StageBadge";
-import type { TeamNote, TeamNotePodcastTag, TeamNoteSender } from "@/lib/team-notes";
 import type { Sponsor } from "@/lib/types";
-
-const SENDER_KEY = "3point0.teamNoteSender";
-const SENDERS: TeamNoteSender[] = ["Marquel", "Randy", "Andrew", "Rich", "Heather", "CJ", "Team"];
 
 type DraftState = {
   open: boolean;
@@ -76,12 +72,9 @@ function localChannel(s: Sponsor) {
   const hasLinkedIn = Boolean(s.linkedin_url);
   const tier = (s.tier ?? "").toUpperCase();
   const isFounderOrCxo =
-    title.includes("ceo") ||
-    title.includes("founder") ||
-    title.includes("co-founder") ||
-    title.includes("chief");
+    title.includes("ceo") || title.includes("founder") ||
+    title.includes("co-founder") || title.includes("chief");
   const genericEmail = email.startsWith("partnerships@") || email.startsWith("info@");
-
   if (tier === "S" && hasLinkedIn && email) return "combination";
   if (isFounderOrCxo && hasLinkedIn) return "linkedin dm";
   if (genericEmail) return "website inquiry";
@@ -94,18 +87,9 @@ function greetingPrefix(hour: number) {
   return "Good evening";
 }
 
-function tagBadgeClass(tag: TeamNotePodcastTag) {
-  if (tag === "ONE54") return "bg-[rgba(201,168,124,0.18)] text-[var(--color-accent-primary)]";
-  if (tag === "PRESSBOX") return "bg-[rgba(232,83,61,0.14)] text-[var(--color-accent-coral)]";
-  return "bg-[rgba(138,138,122,0.15)] text-[var(--color-text-secondary)]";
-}
-
 function formatClock(d: Date) {
   return d.toLocaleTimeString(undefined, {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: true,
+    hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: true,
   });
 }
 
@@ -115,40 +99,27 @@ export function CommandCenterClient({
   meetings,
 }: {
   sponsors: Sponsor[];
-  initialNotes: TeamNote[];
+  initialNotes: unknown[];
   meetings: { company: string; startsAt: string; source: "calendar_mcp" | "sponsors" }[];
 }) {
-  const router = useRouter();
   const [draft, setDraft] = useState<DraftState>(initialDraft);
   const { activePodcast, accent } = usePodcastWorkspace();
   const [mounted, setMounted] = useState(false);
   const [clock, setClock] = useState<Date | null>(null);
-
-  const [sender, setSender] = useState<TeamNoteSender>("Marquel");
-  const [noteTag, setNoteTag] = useState<TeamNotePodcastTag>("ONE54");
-  const [noteInput, setNoteInput] = useState("");
-  const [pendingNote, startNoteTransition] = useTransition();
   const [priorityRows, setPriorityRows] = useState<Sponsor[]>([]);
+  const [, startTransition] = useTransition();
 
   useEffect(() => {
     setMounted(true);
     setClock(new Date());
     const t = window.setInterval(() => setClock(new Date()), 1000);
-    const s = window.localStorage.getItem(SENDER_KEY);
-    if (s === "Marquel" || s === "Randy" || s === "Team") setSender(s);
     return () => window.clearInterval(t);
   }, []);
 
   useEffect(() => {
-    window.localStorage.setItem(SENDER_KEY, sender);
-  }, [sender]);
-
-  useEffect(() => {
-    const fetchPriorities = async () => {
-      const rows = await getPriorityTargets();
-      setPriorityRows(rows);
-    };
-    void fetchPriorities();
+    startTransition(() => {
+      void getPriorityTargets().then(setPriorityRows);
+    });
   }, []);
 
   const workspaceSponsors = useMemo(
@@ -159,57 +130,30 @@ export function CommandCenterClient({
   const priorities = useMemo(() => {
     if (priorityRows.length > 0) {
       return priorityRows.slice(0, 5).map((s) => ({
-        s,
-        since: daysSince(s.lastContactDate),
-        bucket: 1,
-        p1: 1,
-        p2: 0,
-        p3: 0,
-        p4: 0,
+        s, since: daysSince(s.lastContactDate), bucket: 1,
       }));
     }
     if (!mounted) {
-      return workspaceSponsors
-        .slice()
+      return workspaceSponsors.slice()
         .sort((a, b) => a.company.localeCompare(b.company))
         .slice(0, 5)
-        .map((s) => ({
-          s,
-          since: null as number | null,
-          bucket: 99,
-          p1: 0,
-          p2: 0,
-          p3: 0,
-          p4: 0,
-        }));
+        .map((s) => ({ s, since: null as number | null, bucket: 99 }));
     }
-    const scored = workspaceSponsors
+    return workspaceSponsors
       .map((s) => {
         const since = daysSince(s.lastContactDate);
         const tier = (s.tier ?? "").toUpperCase();
-        const notesPriority = /priority/i.test(s.notes ?? "");
         const p1 = tier === "S" && s.stage === "New" ? 1 : 0;
         const p2 = since !== null && since >= 7 ? 1 : 0;
         const p3 = tier === "A" && s.stage === "Contacted" ? 1 : 0;
-        const p4 = notesPriority ? 1 : 0;
-        const bucket = p1 ? 1 : p2 ? 2 : p3 ? 3 : p4 ? 4 : 99;
-        return { s, since, bucket, p1, p2, p3, p4 };
+        const bucket = p1 ? 1 : p2 ? 2 : p3 ? 3 : 99;
+        return { s, since, bucket };
       })
-      .sort((a, b) => {
-        if (a.bucket !== b.bucket) return a.bucket - b.bucket;
-        const aSince = a.since ?? -1;
-        const bSince = b.since ?? -1;
-        return bSince - aSince;
-      })
+      .sort((a, b) => a.bucket !== b.bucket
+        ? a.bucket - b.bucket
+        : (b.since ?? -1) - (a.since ?? -1))
       .slice(0, 5);
-    return scored;
   }, [workspaceSponsors, mounted, priorityRows]);
-
-  const sortedNotes = useMemo(() => {
-    return [...initialNotes].sort((a, b) =>
-      String(a.createdAt ?? "").localeCompare(String(b.createdAt ?? ""))
-    );
-  }, [initialNotes]);
 
   const clientNow = mounted ? new Date() : null;
   const isoDay = clientNow ? (clientNow.getDay() === 0 ? 7 : clientNow.getDay()) : 1;
@@ -218,8 +162,7 @@ export function CommandCenterClient({
 
   const openPitch = (s: Sponsor) => {
     setDraft({
-      ...initialDraft,
-      open: true,
+      ...initialDraft, open: true,
       title: `${s.contactName} · ${s.company}`,
       toEmail: s.email,
       subject: `${s.company} x ${s.podcast} sponsorship`,
@@ -228,112 +171,11 @@ export function CommandCenterClient({
     void draftOutreachEmail(s.id).then((res) => {
       setDraft((d) =>
         res.ok
-          ? {
-              ...d,
-              loading: false,
-              body: res.email,
-              recommendedChannel: res.recommendedChannel,
-              channelReason: res.reason,
-            }
+          ? { ...d, loading: false, body: res.email, recommendedChannel: res.recommendedChannel, channelReason: res.reason }
           : { ...d, loading: false, error: res.error }
       );
     });
   };
-
-  const teamNotesSection = (
-    <section className="mission-card flex flex-col p-4">
-      <h2 className="font-mono text-sm uppercase tracking-[0.18em] text-[var(--color-accent-eggshell)]">
-        Agent Alpha · Team notes
-      </h2>
-      <p className="mt-2 text-sm text-[var(--color-text-secondary)]">Internal feed — not a full chat.</p>
-
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        <span className="text-sm text-[var(--color-text-secondary)]">You are:</span>
-        {SENDERS.map((s) => (
-          <button
-            key={s}
-            type="button"
-            onClick={() => setSender(s)}
-            className={`min-h-11 rounded border px-2.5 py-2 font-mono text-[11px] uppercase tracking-wider lg:min-h-0 lg:py-1 ${
-              sender === s
-                ? "border-[rgba(201,168,124,0.5)] bg-[rgba(201,168,124,0.1)] text-[var(--color-accent-primary)]"
-                : "border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-border-strong)]"
-            }`}
-          >
-            {s}
-          </button>
-        ))}
-      </div>
-
-      <div className="mt-3 max-h-64 space-y-2 overflow-y-auto p-1">
-        {sortedNotes.length === 0 && (
-          <p className="text-center text-sm text-[var(--color-text-secondary)]">No notes yet.</p>
-        )}
-        {sortedNotes.map((n) => (
-          <div key={n.id} className="glass-card flex gap-2 rounded-lg p-2">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[var(--color-border)] font-mono text-xs text-[var(--color-accent-eggshell)]">
-              {(n.sender || "?")[0]}
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-sm font-medium text-[var(--color-accent-eggshell)]">{n.sender}</span>
-                <span className={`rounded px-1.5 py-0.5 font-mono text-[9px] uppercase ${tagBadgeClass(n.podcast)}`}>
-                  {n.podcast === "BOTH" ? "BOTH" : n.podcast}
-                </span>
-                <span className="font-mono text-[10px] text-[var(--color-text-secondary)]">
-                  {mounted
-                    ? new Date(n.createdAt).toLocaleString()
-                    : n.createdAt.slice(0, 16).replace("T", " ")}
-                </span>
-              </div>
-              <p className="mt-1 whitespace-pre-wrap text-sm text-[color-mix(in_srgb,var(--color-accent-eggshell)_88%,transparent)]">
-                {n.body}
-              </p>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        <span className="text-sm text-[var(--color-text-secondary)]">Tag:</span>
-        {(["ONE54", "PRESSBOX", "BOTH"] as const).map((t) => (
-          <button
-            key={t}
-            type="button"
-            onClick={() => setNoteTag(t)}
-            className={`min-h-11 rounded border px-2 py-2 font-mono text-[10px] uppercase lg:min-h-0 lg:py-0.5 ${
-              noteTag === t ? tagBadgeClass(t) + " border-current" : "border-[var(--color-border)] text-[var(--color-text-secondary)]"
-            }`}
-          >
-            {t === "BOTH" ? "Both" : t}
-          </button>
-        ))}
-      </div>
-
-      <input
-        type="text"
-        className="mt-2 min-h-11 w-full rounded border border-[var(--color-border)] bg-[var(--color-bg-primary)] px-3 py-2 text-sm text-[var(--color-accent-eggshell)] placeholder:text-[var(--color-text-secondary)]"
-        placeholder="Type a note and press Enter…"
-        value={noteInput}
-        disabled={pendingNote}
-        onChange={(e) => setNoteInput(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key !== "Enter" || e.shiftKey) return;
-          e.preventDefault();
-          const text = noteInput.trim();
-          if (!text || pendingNote) return;
-          startNoteTransition(() => {
-            void postTeamNote({ sender, body: text, podcast: noteTag }).then((res) => {
-              if (res.ok) {
-                setNoteInput("");
-                router.refresh();
-              }
-            });
-          });
-        }}
-      />
-    </section>
-  );
 
   return (
     <div className="w-full min-w-0 space-y-4 lg:space-y-5">
@@ -352,6 +194,7 @@ export function CommandCenterClient({
         error={draft.error}
       />
 
+      {/* Header */}
       <header className="mission-card px-4 py-4 lg:px-5 lg:py-4">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
@@ -370,10 +213,7 @@ export function CommandCenterClient({
             <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
               {clientNow
                 ? clientNow.toLocaleDateString(undefined, {
-                    weekday: "long",
-                    month: "long",
-                    day: "numeric",
-                    year: "numeric",
+                    weekday: "long", month: "long", day: "numeric", year: "numeric",
                   })
                 : "—"}
             </p>
@@ -398,6 +238,8 @@ export function CommandCenterClient({
 
       <div className="grid gap-4 lg:grid-cols-[1fr_min(320px,32%)] lg:items-start lg:gap-6">
         <div className="min-w-0 space-y-4 lg:space-y-5">
+
+          {/* Playbook */}
           <section className="mission-card p-4">
             <h2 className="font-mono text-sm uppercase tracking-[0.18em] text-[var(--color-accent-eggshell)]">
               Today&apos;s Playbook
@@ -407,6 +249,7 @@ export function CommandCenterClient({
             </p>
           </section>
 
+          {/* Meetings */}
           <section className="mission-card p-4">
             <h2 className="font-mono text-sm uppercase tracking-[0.18em] text-[var(--color-accent-eggshell)]">
               Meetings
@@ -426,13 +269,13 @@ export function CommandCenterClient({
             </div>
           </section>
 
+          {/* Priority Targets */}
           <section className="mission-card p-4">
             <div className="mb-3 flex items-center justify-between">
               <h2 className="font-mono text-sm uppercase tracking-[0.18em] text-[var(--color-accent-eggshell)]">
                 Today&apos;s Priority Targets
               </h2>
             </div>
-
             <div className="hidden overflow-x-auto lg:block">
               <table className="w-full min-w-[640px] text-left text-sm">
                 <thead>
@@ -447,19 +290,14 @@ export function CommandCenterClient({
                 </thead>
                 <tbody>
                   {priorities.map((item, idx) => (
-                    <tr
-                      key={item.s.id}
-                      className="border-b border-[var(--color-border)] text-[color-mix(in_srgb,var(--color-accent-eggshell)_90%,transparent)]"
-                    >
+                    <tr key={item.s.id} className="border-b border-[var(--color-border)] text-[color-mix(in_srgb,var(--color-accent-eggshell)_90%,transparent)]">
                       <td className="px-2 py-2 font-mono text-xs text-[var(--color-accent-primary)]">{idx + 1}</td>
                       <td className="px-2 py-2 font-medium">{item.s.company}</td>
                       <td className="px-2 py-2 text-[var(--color-text-secondary)]">{item.s.category || "-"}</td>
                       <td className="px-2 py-2 font-mono text-xs uppercase text-[var(--color-accent-coral)]">
                         {localChannel(item.s)}
                       </td>
-                      <td className="px-2 py-2">
-                        <StageBadge stage={item.s.stage} />
-                      </td>
+                      <td className="px-2 py-2"><StageBadge stage={item.s.stage} /></td>
                       <td className="px-2 py-2 text-right">
                         <button type="button" className="btn-cta" onClick={() => openPitch(item.s)}>
                           Pitch →
@@ -470,7 +308,6 @@ export function CommandCenterClient({
                 </tbody>
               </table>
             </div>
-
             <div className="flex flex-col gap-3 lg:hidden">
               {priorities.map((item) => (
                 <div key={item.s.id} className="glass-card rounded-lg p-3">
@@ -490,15 +327,17 @@ export function CommandCenterClient({
             </div>
           </section>
 
+          {/* Mobile sidebar */}
           <div className="space-y-4 lg:hidden">
             <TodoList />
-            {teamNotesSection}
+            <PodcastInbox />
           </div>
         </div>
 
+        {/* Desktop sidebar */}
         <aside className="hidden min-w-0 space-y-4 lg:block">
           <TodoList />
-          {teamNotesSection}
+          <PodcastInbox />
         </aside>
       </div>
     </div>
