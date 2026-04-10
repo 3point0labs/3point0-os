@@ -23,7 +23,18 @@ function channelHandleFor(podcast: PodcastWorkspace) {
 
 async function fetchJson<T>(url: string): Promise<T> {
   const res = await fetch(url, { cache: "no-store" });
-  if (!res.ok) throw new Error(`Request failed ${res.status}`);
+  if (!res.ok) {
+    let body = "";
+    try {
+      body = await res.text();
+    } catch {
+      body = "";
+    }
+    if (res.status === 401 || res.status === 403) {
+      throw new Error("YouTube API authorization failed. Check YOUTUBE_API_KEY.");
+    }
+    throw new Error(`YouTube request failed (${res.status}). ${body.slice(0, 180)}`);
+  }
   return (await res.json()) as T;
 }
 
@@ -69,7 +80,11 @@ export async function getLatestEpisodes(podcast: PodcastWorkspace, limit = 3): P
 > {
   const apiKey = process.env.YOUTUBE_API_KEY;
   if (!apiKey?.trim()) {
-    return { ok: false, error: "Missing YOUTUBE_API_KEY", missingKey: true };
+    return {
+      ok: false,
+      error: "YOUTUBE_API_KEY is missing. Add it to .env.local and redeploy.",
+      missingKey: true,
+    };
   }
 
   try {
@@ -142,9 +157,13 @@ export async function getLatestEpisodes(podcast: PodcastWorkspace, limit = 3): P
       missingKey: false,
     };
   } catch (e) {
+    const raw = e instanceof Error ? e.message : "Failed to fetch episodes";
+    const clearMessage = raw.toLowerCase().includes("authorization")
+      ? "YouTube API authorization failed. Verify YOUTUBE_API_KEY is valid and enabled for YouTube Data API."
+      : raw;
     return {
       ok: false,
-      error: e instanceof Error ? e.message : "Failed to fetch episodes",
+      error: clearMessage,
       missingKey: false,
     };
   }
