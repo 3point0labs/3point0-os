@@ -72,4 +72,71 @@ Example: [{"messageId":"abc","threadId":"xyz","from":"someone@example.com","subj
     console.error("Inbox route error:", e);
     return NextResponse.json({ error: String(e) }, { status: 500 });
   }
+}import { NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
+
+export async function GET() {
+  const supabase = await createClient();
+
+  // Get the user's Google OAuth token from Supabase session
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const googleToken = session.provider_token;
+  if (!googleToken) {
+    return NextResponse.json({ 
+      error: "No Google token. Please sign out and sign back in with Google." 
+    }, { status: 401 });
+  }
+
+  try {
+    // Call Gmail API directly with the OAuth token
+    const res = await fetch(
+      `https://gmail.googleapis.com/gmail/v1/users/me/messages?q=inquiries%40one54africa.com&maxResults=8`,
+      {
+        headers: { Authorization: `Bearer ${googleToken}` },
+      }
+    );
+
+    if (!res.ok) {
+      const err = await res.text();
+      return NextResponse.json({ error: err }, { status: res.status });
+    }
+
+    const data = await res.json();
+    const messages = data.messages ?? [];
+
+    // Fetch each message's details in parallel
+    const details = await Promise.all(
+      messages.map(async (m: { id: string; threadId: string }) => {
+        const msgRes = await fetch(
+          `https://gmail.googleapis.com/gmail/v1/users/me/messages/${m.id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date`,
+          { headers: { Authorization: `Bearer ${googleToken}` } }
+        );
+        if (!msgRes.ok) return null;
+        const msg = await msgRes.json();
+
+        const headers = msg.payload?.headers ?? [];
+        const get = (name: string) =>
+          headers.find((h: { name: string; value: string }) =>
+            h.name.toLowerCase() === name.toLowerCase()
+          )?.value ?? "";
+
+        return {
+          messageId: msg.id,
+          threadId: msg.threadId,
+          from: get("From"),
+          subject: get("Subject"),
+          snippet: msg.snippet?.replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, "&") ?? "",
+          date: get("Date"),
+          isUnread: (msg.labelIds ?? []).includes("UNREAD"),
+        };
+      })
+    );
+
+    const emails = details.filter(Boolean);
+    return NextResponse.json({ emails });
+  } catch (e) {
+    return NextResponse.json({ error: String(e) }, { status: 500 });
+  }
 }
