@@ -9,6 +9,7 @@ const items = [
   { href: "/command", label: "Command Center" },
   { href: "/broadcast", label: "Broadcast Room" },
   { href: "/partnerships", label: "Partnerships", badge: true as const },
+  { href: "/settings", label: "Settings" },
 ];
 
 export function NavLinks() {
@@ -27,12 +28,17 @@ export function NavLinks() {
       {items.map((item) => {
         const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
         const showBadge = "badge" in item && item.badge && suggestionCount > 0;
+        const isSettings = item.href === "/settings";
         return (
           <Link
             key={item.href}
             href={item.href}
             className={`relative flex min-h-[44px] items-center justify-between gap-2 rounded-lg border border-transparent py-2.5 pl-3 pr-3 font-mono text-xs uppercase tracking-wider transition lg:min-h-0 ${
-              active
+              isSettings
+                ? active
+                  ? "border-l-[3px] border-l-[var(--color-accent-primary)] bg-[rgba(201,168,124,0.08)] pl-2.5 text-[var(--color-accent-eggshell)]"
+                  : "mt-auto text-[var(--color-text-secondary)] hover:border-[var(--color-border)] hover:bg-[rgba(201,168,124,0.04)] hover:text-[var(--color-accent-eggshell)]"
+                : active
                 ? "border-l-[3px] border-l-[var(--color-accent-primary)] bg-[rgba(201,168,124,0.08)] pl-2.5 text-[var(--color-accent-eggshell)]"
                 : "text-[var(--color-text-secondary)] hover:border-[var(--color-border)] hover:bg-[rgba(201,168,124,0.04)] hover:text-[var(--color-accent-eggshell)]"
             }`}
