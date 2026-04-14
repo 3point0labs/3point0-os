@@ -1,11 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { randomUUID } from "crypto";
 import Anthropic from "@anthropic-ai/sdk";
-import { getSponsors, saveSponsors } from "@/lib/data";
+import { createServerClient } from "@supabase/ssr";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
-import type { Podcast, Sponsor, Stage } from "@/lib/types";
+import type { Podcast, Stage } from "@/lib/types";
 import { PODCASTS, STAGES } from "@/lib/types";
 
 function isStage(s: string): s is Stage {
@@ -14,6 +13,14 @@ function isStage(s: string): s is Stage {
 
 function isPodcast(p: string): p is Podcast {
   return (PODCASTS as readonly string[]).includes(p);
+}
+
+function getServiceClient() {
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { cookies: { getAll: () => [], setAll: () => {} } }
+  );
 }
 
 const MODEL = "claude-sonnet-4-20250514";
@@ -94,65 +101,39 @@ async function markGmailConnectedForCurrentUser() {
     if (!user) return;
     await supabase.from("profiles").update({ gmail_connected: true }).eq("id", user.id);
   } catch {
-    // Best-effort only, schema may not yet include gmail_connected.
+    // Best-effort only
   }
 }
 
 export async function addSponsor(formData: FormData) {
   const contactName = String(formData.get("contactName") ?? "").trim();
   const company = String(formData.get("company") ?? "").trim();
-  const email = String(formData.get("email") ?? "").trim();
-  const linkedin_url =
-    String(formData.get("linkedin_url") ?? "").trim() || undefined;
-  const youtubeUrl = String(formData.get("youtubeUrl") ?? "").trim() || undefined;
-  const socialHandle =
-    String(formData.get("socialHandle") ?? "").trim() || undefined;
-  const pitch_angle =
-    String(formData.get("pitch_angle") ?? "").trim() || undefined;
-  const category = String(formData.get("category") ?? "").trim() || undefined;
-  const tier = String(formData.get("tier") ?? "").trim() || undefined;
-  const contact_title =
-    String(formData.get("contact_title") ?? "").trim() || undefined;
-  const podcastRaw = String(formData.get("podcast") ?? "").trim();
-  const stageRaw = String(formData.get("stage") ?? "").trim();
-  const lastContactDate = String(formData.get("lastContactDate") ?? "").trim();
-  const nextAction = String(formData.get("nextAction") ?? "").trim();
-  const notes = String(formData.get("notes") ?? "").trim();
-
   if (!contactName || !company) {
     return { ok: false as const, error: "Contact name and company are required." };
   }
-
-  const sponsors = await getSponsors();
-  const podcast = isPodcast(podcastRaw) ? podcastRaw : "Pressbox Chronicles";
-  const stage = isStage(stageRaw) ? stageRaw : "New";
+  const podcastRaw = String(formData.get("podcast") ?? "").trim();
+  const stageRaw = String(formData.get("stage") ?? "").trim();
   const companySocials = await enrichCompanySocials(company);
-  const next: Sponsor = {
-    id: `sp-${randomUUID().slice(0, 8)}`,
-    contactName,
+  const supabase = getServiceClient();
+  const { error } = await supabase.from("sponsors").insert({
+    contact_name: contactName,
     company,
-    email,
-    linkedin_url,
-    youtubeUrl,
-    socialHandle,
-    pitch_angle,
-    category,
-    tier,
-    contact_title,
-    company_linkedin: companySocials.company_linkedin,
-    company_twitter: companySocials.company_twitter,
-    company_instagram: companySocials.company_instagram,
-    podcast,
-    stage,
-    lastContactDate,
-    nextAction,
-    notes,
-    scheduled_call_date: undefined,
-    gmail_thread_id: undefined,
-    last_reply_date: undefined,
-  };
-  sponsors.push(next);
-  await saveSponsors(sponsors);
+    email: String(formData.get("email") ?? "").trim(),
+    linkedin_url: String(formData.get("linkedin_url") ?? "").trim() || null,
+    pitch_angle: String(formData.get("pitch_angle") ?? "").trim() || null,
+    category: String(formData.get("category") ?? "").trim() || null,
+    tier: String(formData.get("tier") ?? "").trim() || null,
+    contact_title: String(formData.get("contact_title") ?? "").trim() || null,
+    notes: String(formData.get("notes") ?? "").trim() || null,
+    podcast: isPodcast(podcastRaw) ? podcastRaw : "One54",
+    stage: isStage(stageRaw) ? stageRaw : "New",
+    last_contact_date: "",
+    next_action: "Initial outreach",
+    company_linkedin: companySocials.company_linkedin || null,
+    company_twitter: companySocials.company_twitter || null,
+    company_instagram: companySocials.company_instagram || null,
+  });
+  if (error) return { ok: false as const, error: error.message };
   revalidatePath("/partnerships");
   revalidatePath("/command");
   return { ok: true as const };
@@ -161,70 +142,49 @@ export async function addSponsor(formData: FormData) {
 export async function updateSponsor(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   if (!id) return { ok: false as const, error: "Missing id." };
+  const supabase = getServiceClient();
+  const updates: Record<string, unknown> = {};
 
-  const contactName = String(formData.get("contactName") ?? "").trim();
-  const company = String(formData.get("company") ?? "").trim();
-  const email = String(formData.get("email") ?? "").trim();
-  const linkedin_url = String(formData.get("linkedin_url") ?? "").trim();
-  const youtubeUrl = String(formData.get("youtubeUrl") ?? "").trim();
-  const socialHandle = String(formData.get("socialHandle") ?? "").trim();
-  const company_linkedin = String(formData.get("company_linkedin") ?? "").trim();
-  const company_twitter = String(formData.get("company_twitter") ?? "").trim();
-  const company_instagram = String(formData.get("company_instagram") ?? "").trim();
-  const pitch_angle = String(formData.get("pitch_angle") ?? "").trim();
-  const category = String(formData.get("category") ?? "").trim();
-  const tier = String(formData.get("tier") ?? "").trim();
-  const contact_title = String(formData.get("contact_title") ?? "").trim();
-  const podcastRaw = String(formData.get("podcast") ?? "").trim();
+  const fields: [string, string][] = [
+    ["contact_name", "contactName"],
+    ["company", "company"],
+    ["email", "email"],
+    ["linkedin_url", "linkedin_url"],
+    ["pitch_angle", "pitch_angle"],
+    ["category", "category"],
+    ["tier", "tier"],
+    ["contact_title", "contact_title"],
+    ["notes", "notes"],
+    ["next_action", "nextAction"],
+    ["last_contact_date", "lastContactDate"],
+    ["company_linkedin", "company_linkedin"],
+    ["company_twitter", "company_twitter"],
+    ["company_instagram", "company_instagram"],
+  ];
+
+  for (const [col, field] of fields) {
+    const val = String(formData.get(field) ?? "").trim();
+    if (val) updates[col] = val;
+  }
+
   const stageRaw = String(formData.get("stage") ?? "").trim();
-  const lastContactDate = String(formData.get("lastContactDate") ?? "").trim();
-  const nextAction = String(formData.get("nextAction") ?? "").trim();
-  const notes = String(formData.get("notes") ?? "").trim();
+  if (isStage(stageRaw)) updates["stage"] = stageRaw;
+  const podcastRaw = String(formData.get("podcast") ?? "").trim();
+  if (isPodcast(podcastRaw)) updates["podcast"] = podcastRaw;
+  const scheduledCall = String(formData.get("scheduled_call_date") ?? "").trim();
+  if (scheduledCall) updates["scheduled_call_date"] = scheduledCall;
 
-  const sponsors = await getSponsors();
-  const idx = sponsors.findIndex((s) => s.id === id);
-  if (idx === -1) return { ok: false as const, error: "Sponsor not found." };
-  const podcast = isPodcast(podcastRaw) ? podcastRaw : sponsors[idx].podcast;
-  const stage = isStage(stageRaw) ? stageRaw : sponsors[idx].stage;
-
-  sponsors[idx] = {
-    ...sponsors[idx],
-    contactName: contactName || sponsors[idx].contactName,
-    company: company || sponsors[idx].company,
-    email: email || sponsors[idx].email,
-    linkedin_url: linkedin_url || sponsors[idx].linkedin_url,
-    youtubeUrl: youtubeUrl || sponsors[idx].youtubeUrl,
-    socialHandle: socialHandle || sponsors[idx].socialHandle,
-    company_linkedin: company_linkedin || sponsors[idx].company_linkedin,
-    company_twitter: company_twitter || sponsors[idx].company_twitter,
-    company_instagram: company_instagram || sponsors[idx].company_instagram,
-    pitch_angle: pitch_angle || sponsors[idx].pitch_angle,
-    category: category || sponsors[idx].category,
-    tier: tier || sponsors[idx].tier,
-    contact_title: contact_title || sponsors[idx].contact_title,
-    podcast,
-    stage,
-    lastContactDate: lastContactDate || sponsors[idx].lastContactDate,
-    nextAction: nextAction || sponsors[idx].nextAction,
-    notes: notes || sponsors[idx].notes,
-    scheduled_call_date:
-      String(formData.get("scheduled_call_date") ?? "").trim() || sponsors[idx].scheduled_call_date,
-    gmail_thread_id: String(formData.get("gmail_thread_id") ?? "").trim() || sponsors[idx].gmail_thread_id,
-    last_reply_date: String(formData.get("last_reply_date") ?? "").trim() || sponsors[idx].last_reply_date,
-  };
-  await saveSponsors(sponsors);
+  const { error } = await supabase.from("sponsors").update(updates).eq("id", id);
+  if (error) return { ok: false as const, error: error.message };
   revalidatePath("/partnerships");
   revalidatePath("/command");
   return { ok: true as const };
 }
 
 export async function deleteSponsor(id: string) {
-  const sponsors = await getSponsors();
-  const filtered = sponsors.filter((s) => s.id !== id);
-  if (filtered.length === sponsors.length) {
-    return { ok: false as const, error: "Not found." };
-  }
-  await saveSponsors(filtered);
+  const supabase = getServiceClient();
+  const { error } = await supabase.from("sponsors").delete().eq("id", id);
+  if (error) return { ok: false as const, error: error.message };
   revalidatePath("/partnerships");
   revalidatePath("/command");
   return { ok: true as const };
@@ -260,77 +220,75 @@ export async function importSponsorsFromCsv(
   rows: CsvImportInput[],
   podcastOverride?: Podcast
 ) {
-  const sponsors = await getSponsors();
-  let imported = 0;
-  let skipped = 0;
-  const existing = new Set(
-    sponsors.map((s) =>
-      `${s.company.trim().toLowerCase()}|${s.contactName
-        .trim()
-        .toLowerCase()}|${s.email.trim().toLowerCase()}`
+  const supabase = getServiceClient();
+  const { data: existing } = await supabase
+    .from("sponsors")
+    .select("company, contact_name, email");
+
+  const existingSet = new Set(
+    (existing ?? []).map(
+      (s) =>
+        `${s.company?.trim().toLowerCase()}|${s.contact_name?.trim().toLowerCase()}|${s.email?.trim().toLowerCase()}`
     )
   );
+
+  let imported = 0;
+  let skipped = 0;
 
   for (const row of rows) {
     const company = row.company.trim();
     const contactName = row.contactName.trim();
     const email = row.email.trim();
     if (!company || !contactName) {
-      skipped += 1;
+      skipped++;
       continue;
     }
-    const dedupeKey = `${company.toLowerCase()}|${contactName.toLowerCase()}|${email.toLowerCase()}`;
-    if (existing.has(dedupeKey)) {
-      skipped += 1;
+    const key = `${company.toLowerCase()}|${contactName.toLowerCase()}|${email.toLowerCase()}`;
+    if (existingSet.has(key)) {
+      skipped++;
       continue;
     }
+    existingSet.add(key);
 
     const rawPitch = row.pitch_angle.trim();
     const explicitLinkedIn = cleanUrl(row.linkedin_url ?? "");
-    const rawStatus = row.stage.trim();
-    const statusAsStage = mapCsvStatusToStage(rawStatus);
     const fallbackLinkedIn =
       !explicitLinkedIn && looksLikeLinkedIn(rawPitch) ? cleanUrl(rawPitch) : undefined;
     const linkedin_url = explicitLinkedIn || fallbackLinkedIn;
     const pitch_angle = explicitLinkedIn
-      ? rawPitch || undefined
+      ? rawPitch || null
       : fallbackLinkedIn
-        ? undefined
-        : rawPitch || undefined;
+        ? null
+        : rawPitch || null;
+
     const socials = await enrichCompanySocials(company);
 
-    const next: Sponsor = {
-      id: `sp-${randomUUID().slice(0, 8)}`,
-      contactName,
+    const { error } = await supabase.from("sponsors").insert({
+      contact_name: contactName,
       company,
       email,
-      podcast:
-        (row.podcast && isPodcast(row.podcast as Podcast)
-          ? (row.podcast as Podcast)
-          : undefined) ||
-        (podcastOverride && isPodcast(podcastOverride) ? podcastOverride : "One54"),
-      stage: statusAsStage,
-      lastContactDate: "",
-      nextAction: "",
-      notes: row.notes.trim(),
-      linkedin_url,
+      linkedin_url: linkedin_url || null,
       pitch_angle,
-      category: row.category.trim() || undefined,
-      tier: row.tier.trim() || undefined,
-      contact_title: row.contact_title.trim() || undefined,
-      company_linkedin: socials.company_linkedin,
-      company_twitter: socials.company_twitter,
-      company_instagram: socials.company_instagram,
-      scheduled_call_date: undefined,
-      gmail_thread_id: undefined,
-      last_reply_date: undefined,
-    };
-    sponsors.push(next);
-    existing.add(dedupeKey);
-    imported += 1;
+      category: row.category.trim() || null,
+      tier: row.tier.trim() || null,
+      contact_title: row.contact_title.trim() || null,
+      notes: row.notes.trim() || null,
+      podcast:
+        row.podcast && isPodcast(row.podcast as Podcast)
+          ? (row.podcast as Podcast)
+          : podcastOverride ?? "One54",
+      stage: mapCsvStatusToStage(row.stage),
+      last_contact_date: "",
+      next_action: "",
+      company_linkedin: socials.company_linkedin || null,
+      company_twitter: socials.company_twitter || null,
+      company_instagram: socials.company_instagram || null,
+    });
+
+    if (!error) imported++;
+    else skipped++;
   }
 
-  await saveSponsors(sponsors);
   revalidatePath("/partnerships");
   revalidatePath("/command");
   return { ok: true as const, imported, skipped };
@@ -338,32 +296,33 @@ export async function importSponsorsFromCsv(
 
 export async function moveSponsorStage(id: string, stage: Stage) {
   if (!isStage(stage)) return { ok: false as const, error: "Invalid stage." };
-  const sponsors = await getSponsors();
-  const idx = sponsors.findIndex((s) => s.id === id);
-  if (idx === -1) return { ok: false as const, error: "Sponsor not found." };
-  sponsors[idx] = { ...sponsors[idx], stage };
-  await saveSponsors(sponsors);
+  const supabase = getServiceClient();
+  const { error } = await supabase.from("sponsors").update({ stage }).eq("id", id);
+  if (error) return { ok: false as const, error: error.message };
   revalidatePath("/partnerships");
   revalidatePath("/command");
   return { ok: true as const };
 }
 
 export async function scheduleSponsorCall(id: string, scheduledAtIso: string) {
-  const sponsors = await getSponsors();
-  const idx = sponsors.findIndex((s) => s.id === id);
-  if (idx === -1) return { ok: false as const, error: "Sponsor not found." };
-  sponsors[idx] = { ...sponsors[idx], scheduled_call_date: scheduledAtIso };
-  await saveSponsors(sponsors);
+  const supabase = getServiceClient();
+  const { error } = await supabase
+    .from("sponsors")
+    .update({ scheduled_call_date: scheduledAtIso })
+    .eq("id", id);
+  if (error) return { ok: false as const, error: error.message };
   revalidatePath("/partnerships");
   revalidatePath("/command");
   return { ok: true as const };
 }
 
 export async function checkSponsorReplies() {
-  const sponsors = await getSponsors();
-  const emails = sponsors
-    .map((s) => s.email.trim().toLowerCase())
-    .filter((e) => e.length > 0);
+  const supabase = getServiceClient();
+  const { data: sponsors } = await supabase.from("sponsors").select("id, email, gmail_thread_id");
+  const rows = sponsors ?? [];
+  const emails = rows
+    .map((s) => s.email?.trim().toLowerCase())
+    .filter((e) => e && e.length > 0);
 
   if (!emails.length) {
     return { ok: true as const, checked: 0, matched: 0 };
@@ -389,7 +348,6 @@ export async function checkSponsorReplies() {
       max_tokens: 2000,
       stream: false,
       messages: [{ role: "user", content: prompt }],
-      // Passed through for MCP-enabled Anthropic runtime integrations.
       ...(GMAIL_MCP_SERVER
         ? ({
             mcp_servers: [{ type: "url", url: GMAIL_MCP_SERVER, name: "gmail" }],
@@ -408,20 +366,21 @@ export async function checkSponsorReplies() {
 
     const nowIso = new Date().toISOString();
     let matched = 0;
-    const updated = sponsors.map((s) => {
-      const hit = matches.find((m) => m.email.trim().toLowerCase() === s.email.trim().toLowerCase());
-      if (!hit) return s;
-      matched += 1;
-      return {
-        ...s,
-        stage: "Contacted" as Stage,
+
+    for (const hit of matches) {
+      const sponsor = rows.find(
+        (s) => s.email?.trim().toLowerCase() === hit.email.trim().toLowerCase()
+      );
+      if (!sponsor) continue;
+      await supabase.from("sponsors").update({
+        stage: "Contacted",
         last_reply_date: hit.last_reply_date || nowIso,
-        gmail_thread_id: hit.gmail_thread_id || s.gmail_thread_id,
-      };
-    });
+        gmail_thread_id: hit.gmail_thread_id || sponsor.gmail_thread_id,
+      }).eq("id", sponsor.id);
+      matched++;
+    }
 
     if (matched > 0) {
-      await saveSponsors(updated);
       await markGmailConnectedForCurrentUser();
       revalidatePath("/partnerships");
       revalidatePath("/command");
@@ -435,10 +394,14 @@ export async function checkSponsorReplies() {
 }
 
 export async function getUpcomingSponsorMeetings() {
-  const sponsors = await getSponsors();
+  const supabase = getServiceClient();
   const now = Date.now();
-  const fromSponsors: SponsorMeeting[] = sponsors
-    .filter((s) => s.scheduled_call_date)
+  const { data } = await supabase
+    .from("sponsors")
+    .select("company, scheduled_call_date")
+    .not("scheduled_call_date", "is", null);
+
+  const fromSponsors: SponsorMeeting[] = (data ?? [])
     .map((s) => ({
       company: s.company,
       startsAt: String(s.scheduled_call_date),
