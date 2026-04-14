@@ -1,9 +1,11 @@
 import { AppShell } from "@/components/AppShell";
 import { PartnershipsClient } from "@/components/PartnershipsClient";
 import { SystemStatusBar } from "@/components/SystemStatusBar";
+import { DiscoveryStatusBar } from "@/components/DiscoveryStatusBar";
 import { filterRowsByPodcastAccess, filterSponsorsByProfile } from "@/lib/access";
 import { getServerProfile } from "@/lib/auth-server";
 import { getSponsors } from "@/lib/data";
+import { readSettings } from "@/lib/settings";
 import { readSuggestions } from "@/lib/suggestions";
 
 export const dynamic = "force-dynamic";
@@ -11,7 +13,11 @@ export const dynamic = "force-dynamic";
 export default async function PartnershipsPage() {
   const profile = await getServerProfile();
 
-  const [sponsorsRaw, suggestionsRaw] = await Promise.all([getSponsors(), readSuggestions()]);
+  const [sponsorsRaw, suggestionsRaw, settings] = await Promise.all([
+    getSponsors(),
+    readSuggestions(),
+    readSettings(),
+  ]);
   const sponsors = filterSponsorsByProfile(sponsorsRaw, profile);
   const suggestions = filterRowsByPodcastAccess(suggestionsRaw, profile);
 
@@ -23,12 +29,7 @@ export default async function PartnershipsPage() {
         <header className="mission-card px-4 py-4 lg:px-5">
           <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-[var(--color-text-secondary)]">Partnerships</p>
           <h1 className="mt-2 font-mono text-2xl tracking-tight text-[var(--color-accent-eggshell)]">Partnership command</h1>
-          <p className="mt-1 max-w-3xl text-sm text-[var(--color-text-secondary)]">
-            Sponsor pipeline and outreach for{" "}
-            <span className="text-[var(--color-accent-eggshell)]">Pressbox Chronicles</span> and{" "}
-            <span className="text-[var(--color-accent-eggshell)]">One54</span>. Data:{" "}
-            <code className="text-[color:var(--accent)]">data/sponsors.json</code>
-          </p>
+          <DiscoveryStatusBar lastRunAt={settings.lastDiscoveryRunAt} />
         </header>
 
         <PartnershipsClient initial={sponsors} suggestions={suggestions} />
