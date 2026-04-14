@@ -1,7 +1,4 @@
-import { promises as fs } from "fs";
-import path from "path";
-
-const FILE = path.join(process.cwd(), "data", "settings.json");
+import { createServerClient } from "@supabase/ssr";
 
 export type DiscoveryFrequency = "daily" | "weekly";
 
@@ -15,22 +12,38 @@ export type AppSettings = {
 
 const defaultSettings: AppSettings = {
   autoDiscovery: false,
-  frequency: "weekly",
+  frequency: "daily",
   contactsPerRun: 10,
   podcasts: ["One54", "Pressbox Chronicles"],
   lastDiscoveryRunAt: null,
 };
 
+function getServiceClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+  return createServerClient(url, key, {
+    cookies: { getAll: () => [], setAll: () => {} },
+  });
+}
+
 export async function readSettings(): Promise<AppSettings> {
   try {
-    const raw = await fs.readFile(FILE, "utf-8");
-    const parsed = JSON.parse(raw) as Partial<AppSettings>;
+    const supabase = getServiceClient();
+    const { data } = await supabase
+      .from("app_settings")
+      .select("*")
+      .eq("key", "discovery")
+      .maybeSingle();
+    if (!data?.value) return { ...defaultSettings };
+    const parsed = data.value as Partial<AppSettings>;
     return {
       ...defaultSettings,
       ...parsed,
       podcasts:
         Array.isArray(parsed.podcasts) && parsed.podcasts.length > 0
-          ? (parsed.podcasts.filter((p) => p === "One54" || p === "Pressbox Chronicles") as AppSettings["podcasts"])
+          ? parsed.podcasts.filter(
+              (p) => p === "One54" || p === "Pressbox Chronicles"
+            ) as AppSettings["podcasts"]
           : defaultSettings.podcasts,
     };
   } catch {
@@ -39,5 +52,9 @@ export async function readSettings(): Promise<AppSettings> {
 }
 
 export async function writeSettings(settings: AppSettings): Promise<void> {
-  await fs.writeFile(FILE, JSON.stringify(settings, null, 2), "utf-8");
+  const supabase = getServiceClient();
+  await supabase.from("app_settings").upsert(
+    { key: "discovery", value: settings },
+    { onConflict: "key" }
+  );
 }
