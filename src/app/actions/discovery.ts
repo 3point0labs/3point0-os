@@ -8,7 +8,7 @@ import { readSettings, writeSettings, type AppSettings } from "@/lib/settings";
 import type { Podcast } from "@/lib/types";
 import { PODCASTS } from "@/lib/types";
 
-const MODEL = "claude-sonnet-4-20250514";
+const MODEL = "claude-haiku-4-5-20251001";
 
 const ONE54_AGENT_CONTEXT = `One54 — African business, innovation, and culture podcast. Audience: globally curious listeners interested in Africa's economies, founders, and trends. Partnership tone: professional, brand-aware, growth-focused.`;
 
@@ -119,7 +119,7 @@ async function runDiscoveryPrompt(userPrompt: string): Promise<string> {
 
   const client = new Anthropic({ apiKey });
   const tools = [
-    { type: "web_search_20250305" as const, name: "web_search", max_uses: 25 },
+    { type: "web_search_20250305" as const, name: "web_search", max_uses: 5 },
   ];
 
   try {
