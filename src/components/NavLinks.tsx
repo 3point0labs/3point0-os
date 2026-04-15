@@ -8,7 +8,9 @@ import { getSuggestionCount } from "@/app/actions/suggestions";
 const items = [
   { href: "/command", label: "Command Center" },
   { href: "/broadcast", label: "Broadcast Room" },
+  { href: "/sponsors", label: "Contacts" },
   { href: "/partnerships", label: "Partnerships", badge: true as const },
+  { href: "/dealflow", label: "DEALFLOW", icon: "target" as const },
   { href: "/settings", label: "Settings" },
 ];
 
@@ -50,6 +52,13 @@ export function NavLinks() {
                   aria-hidden
                 />
               )}
+              {item.icon === "target" ? (
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+                  <circle cx="12" cy="12" r="8.5" stroke="currentColor" strokeWidth="1.5" />
+                  <circle cx="12" cy="12" r="4.5" stroke="currentColor" strokeWidth="1.5" />
+                  <circle cx="12" cy="12" r="1.4" fill="currentColor" />
+                </svg>
+              ) : null}
               <span>{item.label}</span>
             </span>
             {showBadge && (
