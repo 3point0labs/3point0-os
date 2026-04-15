@@ -19,7 +19,6 @@ type Props = {
 export function DealFlowClient({ initialContacts }: Props) {
   const [contacts, setContacts] = useState(initialContacts)
   const [brand, setBrand] = useState("")
-  const [targetRole, setTargetRole] = useState("CMO")
   const [podcast, setPodcast] = useState<DealFlowPodcast>("One54")
   const [scoutResult, setScoutResult] = useState<ScoutResult | null>(null)
   const [scouting, setScouting] = useState(false)
@@ -45,7 +44,7 @@ export function DealFlowClient({ initialContacts }: Props) {
     const res = await fetch("/api/dealflow/scout", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ brand, targetRole, podcast }),
+      body: JSON.stringify({ brand, podcast }),
     })
     const data = (await res.json()) as { error?: string; result?: ScoutResult }
     setScouting(false)
@@ -102,13 +101,11 @@ export function DealFlowClient({ initialContacts }: Props) {
     <div className="space-y-4 lg:space-y-5">
       <ScoutSection
         brand={brand}
-        targetRole={targetRole}
         podcast={podcast}
         scouting={scouting}
         error={error}
         result={scoutResult}
         onBrandChange={setBrand}
-        onTargetRoleChange={setTargetRole}
         onPodcastChange={setPodcast}
         onScout={() => void handleScout()}
         onDraftPitch={handleUseScoutForPitch}

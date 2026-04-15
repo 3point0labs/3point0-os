@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server"
 
 type ScoutBody = {
   brand: string
-  targetRole: string
+  podcast: "One54" | "Pressbox Chronicles" | "BOTH"
 }
 
 function extractJsonObject(raw: string) {
@@ -31,22 +31,23 @@ export async function POST(req: Request) {
 
   const body = (await req.json()) as ScoutBody
   const brand = (body.brand ?? "").trim()
-  const targetRole = (body.targetRole ?? "").trim()
-  if (!brand || !targetRole) {
-    return NextResponse.json({ error: "Brand and role are required." }, { status: 400 })
+  const podcast = body.podcast ?? "One54"
+  if (!brand) {
+    return NextResponse.json({ error: "Brand is required." }, { status: 400 })
   }
 
   const client = new Anthropic({ apiKey })
   try {
     const msg = await client.messages.create({
       model: "claude-haiku-4-5-20251001",
-      max_tokens: 500,
+      max_tokens: 700,
       system:
-        'You are a B2B contact researcher. Given a brand name and target role, return the most likely decision-maker at that company in JSON format: { name, title, company, email, linkedin_url, confidence }. For email, construct the most likely format based on company domain conventions. For LinkedIn, construct the most likely URL. Confidence should be HIGH if the person is well known, MEDIUM if inferred, LOW if guessed. Return JSON only.',
+        `Given a brand name and podcast sponsorship context, autonomously identify the single best decision-maker to contact for a sponsorship deal. Consider company size — for smaller brands target the CEO/Founder, for mid-size target VP of Partnerships or CMO, for large brands target Head of Sponsorships or Brand Partnerships Manager. Return your reasoning in a "role_logic" field explaining why you chose this role.
+Return JSON only with fields: { name, title, company, email, website_url, linkedin_url, confidence, role_logic }.`,
       messages: [
         {
           role: "user",
-          content: `Brand: ${brand}\nTarget role: ${targetRole}`,
+          content: `Brand: ${brand}\nPodcast sponsorship context: ${podcast}`,
         },
       ],
     })
@@ -62,8 +63,10 @@ export async function POST(req: Request) {
         title: String(parsed.title ?? ""),
         company: String(parsed.company ?? brand),
         email: String(parsed.email ?? ""),
+        website_url: String(parsed.website_url ?? ""),
         linkedin_url: String(parsed.linkedin_url ?? ""),
         confidence: String(parsed.confidence ?? "LOW").toUpperCase(),
+        role_logic: String(parsed.role_logic ?? ""),
       },
     })
   } catch (e) {

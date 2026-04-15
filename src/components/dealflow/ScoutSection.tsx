@@ -1,17 +1,14 @@
 "use client"
 
-import { DEALFLOW_ROLES } from "@/lib/dealflow"
 import type { DealFlowConfidence, DealFlowPodcast, ScoutResult } from "@/lib/dealflow"
 
 type Props = {
   brand: string
-  targetRole: string
   podcast: DealFlowPodcast
   scouting: boolean
   error: string | null
   result: ScoutResult | null
   onBrandChange: (value: string) => void
-  onTargetRoleChange: (value: string) => void
   onPodcastChange: (value: DealFlowPodcast) => void
   onScout: () => void
   onDraftPitch: () => void
@@ -26,13 +23,11 @@ function confidenceClass(confidence: DealFlowConfidence) {
 
 export function ScoutSection({
   brand,
-  targetRole,
   podcast,
   scouting,
   error,
   result,
   onBrandChange,
-  onTargetRoleChange,
   onPodcastChange,
   onScout,
   onDraftPitch,
@@ -44,10 +39,10 @@ export function ScoutSection({
         Scout
       </h2>
       <p className="mt-2 text-sm text-[var(--color-text-secondary)]">
-        Find likely decision-makers by brand and role.
+        Find the best decision-maker automatically from brand and podcast context.
       </p>
 
-      <div className="mt-4 grid gap-3 lg:grid-cols-3">
+      <div className="mt-4 grid gap-3 lg:grid-cols-2">
         <input
           type="text"
           value={brand}
@@ -55,17 +50,6 @@ export function ScoutSection({
           placeholder="Brand name"
           className="min-h-11 rounded border border-[var(--color-border)] bg-[var(--color-bg-primary)] px-3 text-sm text-[var(--color-accent-eggshell)]"
         />
-        <select
-          value={targetRole}
-          onChange={(e) => onTargetRoleChange(e.target.value)}
-          className="min-h-11 rounded border border-[var(--color-border)] bg-[var(--color-bg-primary)] px-3 text-sm text-[var(--color-accent-eggshell)]"
-        >
-          {DEALFLOW_ROLES.map((role) => (
-            <option key={role} value={role}>
-              {role}
-            </option>
-          ))}
-        </select>
         <div className="flex min-h-11 items-center gap-2 rounded border border-[var(--color-border)] bg-[var(--color-bg-primary)] px-3">
           {(["One54", "Pressbox Chronicles", "BOTH"] as const).map((p) => (
             <label key={p} className="flex items-center gap-1.5 text-xs text-[var(--color-text-secondary)]">
@@ -100,12 +84,36 @@ export function ScoutSection({
                 {result.title} · {result.company}
               </p>
               <p className="mt-1 text-xs text-[var(--color-text-secondary)]">{result.email}</p>
+              {result.website_url && (
+                <a
+                  href={result.website_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-0.5 block text-xs text-[var(--color-accent-primary)] hover:underline"
+                >
+                  {result.website_url}
+                </a>
+              )}
               <p className="mt-0.5 text-xs text-[var(--color-text-secondary)]">{result.linkedin_url}</p>
+              {result.role_logic && (
+                <p className="mt-1 text-xs text-[var(--color-text-secondary)]">{result.role_logic}</p>
+              )}
             </div>
-            <span className={`rounded border px-2 py-1 font-mono text-[10px] ${confidenceClass(result.confidence)}`}>
-              {result.confidence}
-            </span>
+            <div className="flex flex-col items-end gap-1">
+              <span className={`rounded border px-2 py-1 font-mono text-[10px] ${confidenceClass(result.confidence)}`}>
+                {result.confidence}
+              </span>
+              <span
+                title="Email constructed from domain pattern — verify before sending"
+                className="rounded border border-[rgba(201,168,124,0.4)] bg-[rgba(201,168,124,0.16)] px-2 py-1 font-mono text-[10px] text-[var(--color-accent-primary)]"
+              >
+                CONSTRUCTED
+              </span>
+            </div>
           </div>
+          <p className="mt-2 text-[11px] text-[var(--color-text-secondary)]">
+            Email constructed from domain pattern — verify before sending
+          </p>
           <div className="mt-3 flex flex-wrap gap-2">
             <button type="button" className="btn-cta min-h-10" onClick={onDraftPitch}>
               DRAFT PITCH →

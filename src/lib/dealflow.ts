@@ -6,18 +6,9 @@ export const DEALFLOW_STATUSES = [
   "Closed",
 ] as const
 
-export const DEALFLOW_ROLES = [
-  "CMO",
-  "VP of Partnerships",
-  "Head of Sponsorships",
-  "Director of Marketing",
-  "CEO/Founder",
-] as const
-
 export const DEALFLOW_PODCASTS = ["One54", "Pressbox Chronicles", "BOTH"] as const
 
 export type DealFlowStatus = (typeof DEALFLOW_STATUSES)[number]
-export type DealFlowRole = (typeof DEALFLOW_ROLES)[number]
 export type DealFlowPodcast = (typeof DEALFLOW_PODCASTS)[number]
 
 export type DealFlowConfidence = "HIGH" | "MEDIUM" | "LOW"
@@ -42,8 +33,10 @@ export type ScoutResult = {
   title: string
   company: string
   email: string
+  website_url: string
   linkedin_url: string
   confidence: DealFlowConfidence
+  role_logic: string
 }
 
 export type PitchResult = {
