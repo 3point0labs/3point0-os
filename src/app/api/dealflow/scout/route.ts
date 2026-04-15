@@ -2,9 +2,20 @@ import Anthropic from "@anthropic-ai/sdk"
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 
+const rrKey = process.env.ROCKETREACH_API_KEY
+
 type ScoutBody = {
   brand: string
   podcast: "One54" | "Pressbox Chronicles" | "BOTH"
+}
+
+type RocketReachPerson = {
+  name?: string
+  current_title?: string
+  current_employer?: string
+  linkedin_url?: string
+  emails?: Array<{ email?: string }>
+  links?: { website?: string }
 }
 
 function extractJsonObject(raw: string) {
@@ -15,6 +26,55 @@ function extractJsonObject(raw: string) {
   } catch {
     return null
   }
+}
+
+function parseRocketReachPeople(raw: unknown): RocketReachPerson[] {
+  if (!raw || typeof raw !== "object") return []
+  const obj = raw as Record<string, unknown>
+  if (Array.isArray(obj.results)) return obj.results as RocketReachPerson[]
+  if (Array.isArray(obj.people)) return obj.people as RocketReachPerson[]
+  if (obj.person && typeof obj.person === "object") return [obj.person as RocketReachPerson]
+  if (obj.profile && typeof obj.profile === "object") return [obj.profile as RocketReachPerson]
+  return [obj as RocketReachPerson]
+}
+
+async function lookupRocketReach(params: Record<string, string>): Promise<RocketReachPerson | null> {
+  if (!rrKey?.trim()) return null
+  try {
+    const url = new URL("https://api.rocketreach.co/api/v2/person/lookup")
+    Object.entries(params).forEach(([k, v]) => {
+      if (v.trim()) url.searchParams.set(k, v.trim())
+    })
+    const res = await fetch(url.toString(), {
+      headers: { "Api-Key": rrKey },
+      cache: "no-store",
+    })
+    if (!res.ok) return null
+    const data = (await res.json()) as unknown
+    const people = parseRocketReachPeople(data).filter(Boolean)
+    return people[0] ?? null
+  } catch {
+    return null
+  }
+}
+
+function pickBestRoleMatch(people: RocketReachPerson[], roleHint: string): RocketReachPerson | null {
+  if (people.length === 0) return null
+  const words = roleHint
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean)
+  let best: RocketReachPerson | null = people[0]
+  let bestScore = -1
+  for (const p of people) {
+    const title = (p.current_title ?? "").toLowerCase()
+    const score = words.reduce((acc, w) => (title.includes(w) ? acc + 1 : acc), 0)
+    if (score > bestScore) {
+      best = p
+      bestScore = score
+    }
+  }
+  return best
 }
 
 export async function POST(req: Request) {
@@ -57,16 +117,48 @@ Return JSON only with fields: { name, title, company, email, website_url, linked
     if (!parsed) {
       return NextResponse.json({ error: "Scout agent returned invalid JSON." }, { status: 502 })
     }
+
+    const roleHint = String(parsed.title ?? "")
+    const company = String(parsed.company ?? brand)
+    let rrPerson = await lookupRocketReach({ current_employer: company, title: roleHint })
+    if (!rrPerson) {
+      try {
+        const url = new URL("https://api.rocketreach.co/api/v2/person/lookup")
+        url.searchParams.set("current_employer", company)
+        const res = rrKey?.trim()
+          ? await fetch(url.toString(), { headers: { "Api-Key": rrKey }, cache: "no-store" })
+          : null
+        if (res?.ok) {
+          const data = (await res.json()) as unknown
+          rrPerson = pickBestRoleMatch(parseRocketReachPeople(data), roleHint)
+        }
+      } catch {
+        rrPerson = null
+      }
+    }
+
+    const rrEmail = rrPerson?.emails?.[0]?.email?.trim() ?? ""
+    const isVerified = Boolean(rrPerson && rrEmail)
+
     return NextResponse.json({
       result: {
-        name: String(parsed.name ?? ""),
-        title: String(parsed.title ?? ""),
-        company: String(parsed.company ?? brand),
-        email: String(parsed.email ?? ""),
-        website_url: String(parsed.website_url ?? ""),
-        linkedin_url: String(parsed.linkedin_url ?? ""),
-        confidence: String(parsed.confidence ?? "LOW").toUpperCase(),
+        name: isVerified ? String(rrPerson?.name ?? parsed.name ?? "") : String(parsed.name ?? ""),
+        title: isVerified
+          ? String(rrPerson?.current_title ?? parsed.title ?? "")
+          : String(parsed.title ?? ""),
+        company: isVerified
+          ? String(rrPerson?.current_employer ?? parsed.company ?? brand)
+          : String(parsed.company ?? brand),
+        email: isVerified ? rrEmail : String(parsed.email ?? ""),
+        website_url: isVerified
+          ? String(rrPerson?.links?.website ?? parsed.website_url ?? "")
+          : String(parsed.website_url ?? ""),
+        linkedin_url: isVerified
+          ? String(rrPerson?.linkedin_url ?? parsed.linkedin_url ?? "")
+          : String(parsed.linkedin_url ?? ""),
+        confidence: isVerified ? "VERIFIED" : "CONSTRUCTED",
         role_logic: String(parsed.role_logic ?? ""),
+        source: isVerified ? "via RocketReach" : "AI constructed",
       },
     })
   } catch (e) {

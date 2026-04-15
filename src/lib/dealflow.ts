@@ -11,7 +11,7 @@ export const DEALFLOW_PODCASTS = ["One54", "Pressbox Chronicles", "BOTH"] as con
 export type DealFlowStatus = (typeof DEALFLOW_STATUSES)[number]
 export type DealFlowPodcast = (typeof DEALFLOW_PODCASTS)[number]
 
-export type DealFlowConfidence = "HIGH" | "MEDIUM" | "LOW"
+export type DealFlowConfidence = "VERIFIED" | "CONSTRUCTED" | "GUESSED"
 export type DealFlowChannel = "EMAIL" | "LINKEDIN DM"
 
 export type DealFlowContact = {
@@ -37,6 +37,7 @@ export type ScoutResult = {
   linkedin_url: string
   confidence: DealFlowConfidence
   role_logic: string
+  source: string
 }
 
 export type PitchResult = {

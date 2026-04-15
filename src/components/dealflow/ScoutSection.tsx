@@ -16,8 +16,8 @@ type Props = {
 }
 
 function confidenceClass(confidence: DealFlowConfidence) {
-  if (confidence === "HIGH") return "bg-emerald-600/20 text-emerald-300 border-emerald-500/40"
-  if (confidence === "MEDIUM") return "bg-[rgba(201,168,124,0.16)] text-[var(--color-accent-primary)] border-[rgba(201,168,124,0.4)]"
+  if (confidence === "VERIFIED") return "bg-emerald-600/20 text-emerald-300 border-emerald-500/40"
+  if (confidence === "CONSTRUCTED") return "bg-[rgba(201,168,124,0.16)] text-[var(--color-accent-primary)] border-[rgba(201,168,124,0.4)]"
   return "bg-[rgba(232,83,61,0.12)] text-[var(--color-accent-coral)] border-[rgba(232,83,61,0.4)]"
 }
 
@@ -103,17 +103,14 @@ export function ScoutSection({
               <span className={`rounded border px-2 py-1 font-mono text-[10px] ${confidenceClass(result.confidence)}`}>
                 {result.confidence}
               </span>
-              <span
-                title="Email constructed from domain pattern — verify before sending"
-                className="rounded border border-[rgba(201,168,124,0.4)] bg-[rgba(201,168,124,0.16)] px-2 py-1 font-mono text-[10px] text-[var(--color-accent-primary)]"
-              >
-                CONSTRUCTED
-              </span>
+              <span className="font-mono text-[10px] text-[var(--color-text-secondary)]">{result.source}</span>
             </div>
           </div>
-          <p className="mt-2 text-[11px] text-[var(--color-text-secondary)]">
-            Email constructed from domain pattern — verify before sending
-          </p>
+          {result.confidence !== "VERIFIED" && (
+            <p className="mt-2 text-[11px] text-[var(--color-text-secondary)]" title="Email constructed from domain pattern — verify before sending">
+              Email constructed from domain pattern — verify before sending
+            </p>
+          )}
           <div className="mt-3 flex flex-wrap gap-2">
             <button type="button" className="btn-cta min-h-10" onClick={onDraftPitch}>
               DRAFT PITCH →
