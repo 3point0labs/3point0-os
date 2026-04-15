@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { draftOutreachEmail } from "@/app/actions/draft-email";
 import { getPriorityTargets } from "@/app/actions/stats";
 import { DraftEmailModal } from "./DraftEmailModal";
@@ -123,6 +122,7 @@ export function CommandCenterClient({
   const [priorityRows, setPriorityRows] = useState<Sponsor[]>([]);
   const [health, setHealth] = useState<HealthState | null>(null);
   const [healthLoading, setHealthLoading] = useState(true);
+  const [healthFetchError, setHealthFetchError] = useState<string | null>(null);
   const [activeHealthError, setActiveHealthError] = useState<keyof HealthState | null>(null);
   const [, startTransition] = useTransition();
 
@@ -143,18 +143,31 @@ export function CommandCenterClient({
     let alive = true;
     const fetchHealth = async () => {
       setHealthLoading(true);
+      setHealthFetchError(null);
       try {
-        const res = await fetch("/api/health", { cache: "no-store" });
+        const res = await fetch("/api/health", {
+          cache: "no-store",
+          credentials: "same-origin",
+        });
         const data = (await res.json()) as HealthState | { error?: string };
         if (!alive) return;
-        if (!res.ok || ("error" in data && data.error)) {
+        if (!res.ok) {
           setHealth(null);
+          setHealthFetchError(
+            typeof (data as { error?: string }).error === "string"
+              ? (data as { error: string }).error
+              : `Health check failed (${res.status})`
+          );
+        } else if ("error" in data && data.error) {
+          setHealth(null);
+          setHealthFetchError(String(data.error));
         } else {
           setHealth(data as HealthState);
         }
-      } catch {
+      } catch (e) {
         if (!alive) return;
         setHealth(null);
+        setHealthFetchError(e instanceof Error ? e.message : "Health check network error");
       } finally {
         if (alive) setHealthLoading(false);
       }
@@ -294,11 +307,13 @@ export function CommandCenterClient({
                   <button
                     key={key}
                     type="button"
-                    onClick={() =>
-                      status === "error"
-                        ? setActiveHealthError((prev) => (prev === key ? null : key))
-                        : setActiveHealthError(null)
-                    }
+                    onClick={() => {
+                      if (status === "error") {
+                        setActiveHealthError((prev) => (prev === key ? null : key));
+                      } else {
+                        setActiveHealthError(null);
+                      }
+                    }}
                     className="relative flex items-center gap-1.5 rounded border border-[var(--color-border)] px-2 py-1 font-mono text-[10px] uppercase tracking-wide text-[var(--color-text-secondary)]"
                   >
                     <span className={`h-2 w-2 rounded-full ${dotClass}`} />
@@ -307,9 +322,9 @@ export function CommandCenterClient({
                 );
               })}
             </div>
-            {activeHealthError && health?.[activeHealthError]?.error && (
-              <p className="mt-2 max-w-[300px] text-xs text-[var(--color-accent-coral)] sm:ml-auto">
-                {health[activeHealthError].error}
+            {activeHealthError && (health?.[activeHealthError]?.error || healthFetchError) && (
+              <p className="mt-2 max-w-[320px] text-xs text-[var(--color-accent-coral)] sm:ml-auto">
+                {health?.[activeHealthError]?.error ?? healthFetchError}
               </p>
             )}
             <p className="mt-2 font-mono text-xs tabular-nums text-[var(--color-accent-eggshell)]">
