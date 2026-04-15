@@ -24,6 +24,20 @@ type DraftState = {
   channelReason: string;
 };
 
+type HealthService = {
+  status: "ok" | "error";
+  latency_ms: number;
+  error?: string;
+};
+
+type HealthState = {
+  anthropic: HealthService;
+  supabase: HealthService;
+  rocketreach: HealthService;
+  youtube: HealthService;
+  gmail: HealthService;
+};
+
 const initialDraft: DraftState = {
   open: false,
   title: "",
@@ -107,6 +121,9 @@ export function CommandCenterClient({
   const [mounted, setMounted] = useState(false);
   const [clock, setClock] = useState<Date | null>(null);
   const [priorityRows, setPriorityRows] = useState<Sponsor[]>([]);
+  const [health, setHealth] = useState<HealthState | null>(null);
+  const [healthLoading, setHealthLoading] = useState(true);
+  const [activeHealthError, setActiveHealthError] = useState<keyof HealthState | null>(null);
   const [, startTransition] = useTransition();
 
   useEffect(() => {
@@ -121,6 +138,42 @@ export function CommandCenterClient({
       void getPriorityTargets().then(setPriorityRows);
     });
   }, []);
+
+  useEffect(() => {
+    let alive = true;
+    const fetchHealth = async () => {
+      setHealthLoading(true);
+      try {
+        const res = await fetch("/api/health", { cache: "no-store" });
+        const data = (await res.json()) as HealthState | { error?: string };
+        if (!alive) return;
+        if (!res.ok || ("error" in data && data.error)) {
+          setHealth(null);
+        } else {
+          setHealth(data as HealthState);
+        }
+      } catch {
+        if (!alive) return;
+        setHealth(null);
+      } finally {
+        if (alive) setHealthLoading(false);
+      }
+    };
+    void fetchHealth();
+    const id = window.setInterval(() => void fetchHealth(), 60000);
+    return () => {
+      alive = false;
+      window.clearInterval(id);
+    };
+  }, []);
+
+  const healthOrder: Array<{ key: keyof HealthState; label: string }> = [
+    { key: "anthropic", label: "Anthropic" },
+    { key: "supabase", label: "Supabase" },
+    { key: "rocketreach", label: "RocketReach" },
+    { key: "youtube", label: "YouTube" },
+    { key: "gmail", label: "Gmail" },
+  ];
 
   const workspaceSponsors = useMemo(
     () => sponsors.filter((s) => s.podcast === activePodcast),
@@ -222,12 +275,43 @@ export function CommandCenterClient({
             </p>
           </div>
           <div className="shrink-0 text-left sm:text-right">
-            <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--color-text-secondary)]">
-              Mission status
-            </p>
-            <p className="mt-1 font-mono text-sm font-medium tracking-wide text-[var(--color-accent-primary)]">
-              Operational
-            </p>
+            <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--color-text-secondary)]">System health</p>
+            <div className="mt-1 flex flex-wrap items-center gap-2 sm:justify-end">
+              {healthOrder.map(({ key, label }) => {
+                const service = health?.[key];
+                const status = healthLoading
+                  ? "checking"
+                  : service?.status === "ok"
+                  ? "ok"
+                  : "error";
+                const dotClass =
+                  status === "ok"
+                    ? "bg-emerald-400"
+                    : status === "error"
+                    ? "bg-[var(--color-accent-coral)]"
+                    : "bg-[var(--color-accent-primary)] animate-pulse";
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() =>
+                      status === "error"
+                        ? setActiveHealthError((prev) => (prev === key ? null : key))
+                        : setActiveHealthError(null)
+                    }
+                    className="relative flex items-center gap-1.5 rounded border border-[var(--color-border)] px-2 py-1 font-mono text-[10px] uppercase tracking-wide text-[var(--color-text-secondary)]"
+                  >
+                    <span className={`h-2 w-2 rounded-full ${dotClass}`} />
+                    <span>{label}</span>
+                  </button>
+                );
+              })}
+            </div>
+            {activeHealthError && health?.[activeHealthError]?.error && (
+              <p className="mt-2 max-w-[300px] text-xs text-[var(--color-accent-coral)] sm:ml-auto">
+                {health[activeHealthError].error}
+              </p>
+            )}
             <p className="mt-2 font-mono text-xs tabular-nums text-[var(--color-accent-eggshell)]">
               {mounted && clock ? formatClock(clock) : "—"}
             </p>
