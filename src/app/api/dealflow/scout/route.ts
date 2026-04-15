@@ -9,13 +9,14 @@ type ScoutBody = {
   podcast: "One54" | "Pressbox Chronicles" | "BOTH"
 }
 
-type RocketReachPerson = {
-  id?: number | string
+/** Shape of `profiles[0]` from POST /v2/api/search */
+type RocketReachProfile = {
   name?: string
   current_title?: string
   current_employer?: string
   linkedin_url?: string
   emails?: Array<{ email?: string }>
+  teaser?: { emails?: Array<string | { email?: string }> }
   links?: { website?: string }
 }
 
@@ -34,28 +35,6 @@ function logRocketReachKey() {
   console.log("[Scout RR] RocketReach key length: " + (process.env.ROCKETREACH_API_KEY?.length || 0))
 }
 
-function parseRocketReachPeople(raw: unknown): RocketReachPerson[] {
-  if (!raw) return []
-  if (Array.isArray(raw)) return raw as RocketReachPerson[]
-  if (typeof raw !== "object") return []
-  const obj = raw as Record<string, unknown>
-  if (Array.isArray(obj.results)) return obj.results as RocketReachPerson[]
-  if (Array.isArray(obj.profiles)) return obj.profiles as RocketReachPerson[]
-  if (Array.isArray(obj.people)) return obj.people as RocketReachPerson[]
-  if (obj.person && typeof obj.person === "object") return [obj.person as RocketReachPerson]
-  if (obj.profile && typeof obj.profile === "object") return [obj.profile as RocketReachPerson]
-  if (typeof obj.id === "number" || typeof obj.id === "string") return [obj as RocketReachPerson]
-  return []
-}
-
-function firstEmailFromPerson(p: RocketReachPerson): string {
-  const fromList = p.emails?.[0]?.email?.trim()
-  if (fromList) return fromList
-  const direct = (p as Record<string, unknown>).email
-  if (typeof direct === "string" && direct.trim()) return direct.trim()
-  return ""
-}
-
 async function logAndReadBody(res: Response, label: string): Promise<string> {
   const text = await res.text()
   console.log(`[Scout RR] ${label} status=${res.status}`)
@@ -63,163 +42,61 @@ async function logAndReadBody(res: Response, label: string): Promise<string> {
   return text
 }
 
-/** POST https://api.rocketreach.co/v2/api/search — returns profile stubs (often without emails). */
-async function rocketReachSearch(company: string, title: string): Promise<RocketReachPerson[]> {
-  if (!rrKey?.trim()) return []
-  const url = "https://api.rocketreach.co/v2/api/search"
-  const body = {
-    query: {
-      current_employer: [company],
-      ...(title.trim() ? { title: [title] } : {}),
-    },
-    start: 1,
-    pageSize: 5,
+function emailFromRocketReachProfile(person: RocketReachProfile): string {
+  const teaser0 = person.teaser?.emails?.[0]
+  if (typeof teaser0 === "string" && teaser0.trim()) return teaser0.trim()
+  if (teaser0 && typeof teaser0 === "object" && typeof teaser0.email === "string" && teaser0.email.trim()) {
+    return teaser0.email.trim()
   }
-  try {
-    const res = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Api-Key": rrKey,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(body),
-      cache: "no-store",
-    })
-    const rawText = await logAndReadBody(res, "POST /v2/api/search")
-    if (!res.ok) return []
-    let parsed: unknown
-    try {
-      parsed = JSON.parse(rawText) as unknown
-    } catch {
-      console.error("[Scout RR] POST /v2/api/search JSON parse failed")
-      return []
-    }
-    return parseRocketReachPeople(parsed)
-  } catch (e) {
-    console.error("[Scout RR] POST /v2/api/search error", e instanceof Error ? e.message : e)
-    return []
-  }
-}
-
-/** GET https://api.rocketreach.co/api/v2/person/lookup?id=… — full profile incl. emails when complete. */
-async function rocketReachLookupById(id: number | string): Promise<RocketReachPerson | null> {
-  if (!rrKey?.trim()) return null
-  const url = new URL("https://api.rocketreach.co/api/v2/person/lookup")
-  url.searchParams.set("id", String(id))
-  try {
-    const res = await fetch(url.toString(), {
-      headers: { "Api-Key": rrKey },
-      cache: "no-store",
-    })
-    const rawText = await logAndReadBody(res, `GET person/lookup id=${id}`)
-    if (!res.ok) return null
-    let parsed: unknown
-    try {
-      parsed = JSON.parse(rawText) as unknown
-    } catch {
-      console.error("[Scout RR] person/lookup JSON parse failed")
-      return null
-    }
-    const people = parseRocketReachPeople(parsed)
-    return people[0] ?? null
-  } catch (e) {
-    console.error("[Scout RR] person/lookup by id error", e instanceof Error ? e.message : e)
-    return null
-  }
-}
-
-async function rocketReachLookupQuery(params: Record<string, string>): Promise<RocketReachPerson | null> {
-  if (!rrKey?.trim()) return null
-  try {
-    const url = new URL("https://api.rocketreach.co/api/v2/person/lookup")
-    Object.entries(params).forEach(([k, v]) => {
-      if (v.trim() !== "") url.searchParams.set(k, v.trim())
-    })
-    const res = await fetch(url.toString(), {
-      headers: { "Api-Key": rrKey },
-      cache: "no-store",
-    })
-    const rawText = await logAndReadBody(res, `GET person/lookup ${url.search}`)
-    if (!res.ok) return null
-    let parsed: unknown
-    try {
-      parsed = JSON.parse(rawText) as unknown
-    } catch {
-      console.error("[Scout RR] person/lookup query JSON parse failed")
-      return null
-    }
-    const people = parseRocketReachPeople(parsed).filter(Boolean)
-    return people[0] ?? null
-  } catch (e) {
-    console.error("[Scout RR] person/lookup query error", e instanceof Error ? e.message : e)
-    return null
-  }
-}
-
-function pickBestRoleMatch(people: RocketReachPerson[], roleHint: string): RocketReachPerson | null {
-  if (people.length === 0) return null
-  const words = roleHint
-    .toLowerCase()
-    .split(/[^a-z0-9]+/)
-    .filter(Boolean)
-  let best: RocketReachPerson | null = people[0]
-  let bestScore = -1
-  for (const p of people) {
-    const title = (p.current_title ?? "").toLowerCase()
-    const score = words.reduce((acc, w) => (title.includes(w) ? acc + 1 : acc), 0)
-    if (score > bestScore) {
-      best = p
-      bestScore = score
-    }
-  }
-  return best
+  const fromList = person.emails?.[0]?.email?.trim()
+  if (fromList) return fromList
+  return ""
 }
 
 /**
- * Try RocketReach in order: POST search → lookup by id → query lookup with title → employer-only → name=&employer.
- * Any failure is logged; returns null so Claude fallback still works.
+ * POST https://api.rocketreach.co/v2/api/search — returns `profiles`; use first match only.
  */
-async function enrichWithRocketReach(company: string, roleHint: string): Promise<RocketReachPerson | null> {
+async function fetchRocketReachProfile(company: string, targetRole: string): Promise<RocketReachProfile | null> {
   logRocketReachKey()
   if (!rrKey?.trim()) return null
 
+  const url = "https://api.rocketreach.co/v2/api/search"
   try {
-    const searchHits = await rocketReachSearch(company, roleHint)
-    const candidate =
-      searchHits.length > 0 ? pickBestRoleMatch(searchHits, roleHint) ?? searchHits[0] : null
-    if (candidate?.id !== undefined && candidate.id !== null && candidate.id !== "") {
-      const byId = await rocketReachLookupById(candidate.id)
-      if (byId && (firstEmailFromPerson(byId) || byId.name)) {
-        return { ...candidate, ...byId, emails: byId.emails?.length ? byId.emails : candidate.emails }
-      }
+    const rrResponse = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Api-Key": process.env.ROCKETREACH_API_KEY || "",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        query: {
+          current_employer: [company],
+          title: [targetRole],
+        },
+        start: 1,
+        pageSize: 1,
+      }),
+      cache: "no-store",
+    })
+
+    const rawText = await logAndReadBody(rrResponse, "POST /v2/api/search")
+    if (!rrResponse.ok) {
+      console.error("[Scout RR] POST /v2/api/search non-OK")
+      return null
     }
 
-    let person = await rocketReachLookupQuery({ current_employer: company, title: roleHint })
-    if (person) return person
-
-    const urlOnly = new URL("https://api.rocketreach.co/api/v2/person/lookup")
-    urlOnly.searchParams.set("current_employer", company)
+    let rrData: { profiles?: RocketReachProfile[] }
     try {
-      const res = await fetch(urlOnly.toString(), { headers: { "Api-Key": rrKey }, cache: "no-store" })
-      const rawText = await logAndReadBody(res, "GET person/lookup employer-only")
-      if (res.ok) {
-        try {
-          const parsed = JSON.parse(rawText) as unknown
-          const list = parseRocketReachPeople(parsed)
-          person = pickBestRoleMatch(list, roleHint)
-          if (person) return person
-        } catch {
-          console.error("[Scout RR] employer-only JSON parse failed")
-        }
-      }
+      rrData = JSON.parse(rawText) as { profiles?: RocketReachProfile[] }
     } catch (e) {
-      console.error("[Scout RR] employer-only lookup error", e instanceof Error ? e.message : e)
+      console.error("[Scout RR] POST /v2/api/search JSON parse failed", e instanceof Error ? e.message : e)
+      return null
     }
 
-    person = await rocketReachLookupQuery({ name: "", current_employer: company })
-    return person
+    const person = rrData.profiles?.[0]
+    return person ?? null
   } catch (e) {
-    console.error("[Scout RR] enrichWithRocketReach outer catch", e instanceof Error ? e.message : e)
+    console.error("[Scout RR] POST /v2/api/search error", e instanceof Error ? e.message : e)
     return null
   }
 }
@@ -267,30 +144,36 @@ Return JSON only with fields: { name, title, company, email, website_url, linked
 
     const roleHint = String(parsed.title ?? "")
     const company = String(parsed.company ?? brand)
-    const rrPerson = await enrichWithRocketReach(company, roleHint)
+    const person = await fetchRocketReachProfile(company, roleHint)
 
-    const rrEmail = rrPerson ? firstEmailFromPerson(rrPerson) : ""
-    const isVerified = Boolean(rrPerson && rrEmail)
+    if (person) {
+      const rrEmail = emailFromRocketReachProfile(person)
+      return NextResponse.json({
+        result: {
+          name: String(person.name ?? parsed.name ?? ""),
+          title: String(person.current_title ?? parsed.title ?? ""),
+          company: String(person.current_employer ?? parsed.company ?? brand),
+          email: rrEmail || String(parsed.email ?? ""),
+          website_url: String(person.links?.website ?? parsed.website_url ?? ""),
+          linkedin_url: String(person.linkedin_url ?? parsed.linkedin_url ?? ""),
+          confidence: "VERIFIED",
+          role_logic: String(parsed.role_logic ?? ""),
+          source: "via RocketReach",
+        },
+      })
+    }
 
     return NextResponse.json({
       result: {
-        name: isVerified ? String(rrPerson?.name ?? parsed.name ?? "") : String(parsed.name ?? ""),
-        title: isVerified
-          ? String(rrPerson?.current_title ?? parsed.title ?? "")
-          : String(parsed.title ?? ""),
-        company: isVerified
-          ? String(rrPerson?.current_employer ?? parsed.company ?? brand)
-          : String(parsed.company ?? brand),
-        email: isVerified ? rrEmail : String(parsed.email ?? ""),
-        website_url: isVerified
-          ? String(rrPerson?.links?.website ?? parsed.website_url ?? "")
-          : String(parsed.website_url ?? ""),
-        linkedin_url: isVerified
-          ? String(rrPerson?.linkedin_url ?? parsed.linkedin_url ?? "")
-          : String(parsed.linkedin_url ?? ""),
-        confidence: isVerified ? "VERIFIED" : "CONSTRUCTED",
+        name: String(parsed.name ?? ""),
+        title: String(parsed.title ?? ""),
+        company: String(parsed.company ?? brand),
+        email: String(parsed.email ?? ""),
+        website_url: String(parsed.website_url ?? ""),
+        linkedin_url: String(parsed.linkedin_url ?? ""),
+        confidence: "CONSTRUCTED",
         role_logic: String(parsed.role_logic ?? ""),
-        source: isVerified ? "via RocketReach" : "AI constructed",
+        source: "AI constructed",
       },
     })
   } catch (e) {
