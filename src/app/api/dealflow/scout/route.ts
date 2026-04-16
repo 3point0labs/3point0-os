@@ -56,12 +56,12 @@ function emailFromRocketReachProfile(person: RocketReachProfile): string {
 /**
  * POST https://api.rocketreach.co/v2/api/search — returns `profiles`; use first match only.
  */
-async function fetchRocketReachProfile(_company: string, _targetRole: string): Promise<RocketReachProfile | null> {
-  try {
-    console.log("[RR Debug] Key exists:", !!process.env.ROCKETREACH_API_KEY)
-    console.log("[RR Debug] Key value:", (process.env.ROCKETREACH_API_KEY?.substring(0, 8) || "") + "...")
+async function fetchRocketReachProfile(company: string, targetRole: string): Promise<RocketReachProfile | null> {
+  if (!rrKey?.trim()) return null
 
-    const rrResponse = await fetch("https://api.rocketreach.co/v2/api/search", {
+  const url = "https://api.rocketreach.co/v2/api/search"
+  try {
+    const rrResponse = await fetch(url, {
       method: "POST",
       headers: {
         "Api-Key": process.env.ROCKETREACH_API_KEY || "",
@@ -69,22 +69,23 @@ async function fetchRocketReachProfile(_company: string, _targetRole: string): P
       },
       body: JSON.stringify({
         query: {
-          current_employer: ["Nike"],
-          title: ["Head of Partnerships"],
+          current_employer: [company],
+          current_title: [targetRole],
         },
         start: 1,
         pageSize: 1,
       }),
+      cache: "no-store",
     })
 
-    console.log("[RR Debug] Status:", rrResponse.status)
-    const raw = await rrResponse.text()
-    console.log("[RR Debug] Raw response:", raw.substring(0, 500))
-  } catch (e) {
-    console.log("[RR Debug] Error:", e instanceof Error ? e.message : String(e))
-  }
+    if (!rrResponse.ok) return null
 
-  return null
+    const rrData = (await rrResponse.json()) as { profiles?: RocketReachProfile[] }
+    const person = rrData.profiles?.[0]
+    return person ?? null
+  } catch {
+    return null
+  }
 }
 
 export async function POST(req: Request) {
