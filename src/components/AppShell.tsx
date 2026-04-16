@@ -11,11 +11,10 @@ import { SidebarUser } from "./SidebarUser";
 export function AppShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const supabase = createClient()
-    const saveProviderToken = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
-      if (session?.provider_token) {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === "SIGNED_IN" && session?.provider_token) {
         await supabase
           .from("profiles")
           .update({
@@ -24,8 +23,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           })
           .eq("id", session.user.id)
       }
-    }
-    void saveProviderToken()
+    })
+
+    return () => subscription.unsubscribe()
   }, [])
 
   return (
