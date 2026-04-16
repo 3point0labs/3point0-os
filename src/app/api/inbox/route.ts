@@ -34,8 +34,8 @@ export async function GET() {
     return NextResponse.json({ error: profileError.message }, { status: 500 });
   }
 
-  const googleToken = profile?.provider_token as string | undefined;
-  if (!googleToken) {
+  const accessToken = profile?.provider_token as string | undefined;
+  if (!accessToken) {
     return NextResponse.json({ 
       error: "No Google token. Please sign out and sign back in with Google." 
     }, { status: 401 });
@@ -46,7 +46,7 @@ export async function GET() {
     const res = await fetch(
       `https://gmail.googleapis.com/gmail/v1/users/me/messages?q=inquiries%40one54africa.com&maxResults=8`,
       {
-        headers: { Authorization: `Bearer ${googleToken}` },
+        headers: { Authorization: `Bearer ${accessToken}` },
       }
     );
 
@@ -63,7 +63,7 @@ export async function GET() {
       messages.map(async (m) => {
         const msgRes = await fetch(
           `https://gmail.googleapis.com/gmail/v1/users/me/messages/${m.id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date`,
-          { headers: { Authorization: `Bearer ${googleToken}` } }
+          { headers: { Authorization: `Bearer ${accessToken}` } }
         );
         if (!msgRes.ok) return null;
         const msg = (await msgRes.json()) as {

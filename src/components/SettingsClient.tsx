@@ -136,12 +136,12 @@ export function SettingsClient({ initial }: { initial: AppSettings }) {
             type="button"
             disabled={signingOut}
             className="min-h-10 rounded border border-[rgba(232,83,61,0.28)] bg-[rgba(232,83,61,0.08)] px-3 font-mono text-[10px] uppercase tracking-[0.16em] text-[rgba(232,83,61,0.8)] transition hover:bg-[rgba(232,83,61,0.12)] disabled:opacity-60"
-            onClick={() => {
+            onClick={async () => {
               setSigningOut(true);
-              const supabase = createClient();
-              void supabase.auth.signOut().finally(() => {
-                router.replace("/login");
-              });
+              const supabase = createClient()
+              const { error } = await supabase.auth.signOut()
+              if (!error) window.location.href = "/login"
+              else setSigningOut(false)
             }}
           >
             {signingOut ? "SIGNING OUT..." : "SIGN OUT"}

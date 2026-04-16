@@ -13,26 +13,6 @@ async function sleep(ms: number) {
   await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function persistGoogleProviderTokens(
-  supabase: Awaited<ReturnType<typeof createClient>>
-) {
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  if (!session?.provider_token) return;
-
-  const { error } = await supabase
-    .from("profiles")
-    .update({
-      provider_token: session.provider_token,
-      provider_refresh_token: session.provider_refresh_token ?? null,
-    })
-    .eq("id", session.user.id);
-  if (error) {
-    console.error("[Auth callback] Failed to persist provider tokens:", error.message);
-  }
-}
-
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
@@ -43,7 +23,18 @@ export async function GET(request: Request) {
     try {
       const supabase = await createClient();
       await supabase.auth.exchangeCodeForSession(code);
-      await persistGoogleProviderTokens(supabase);
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (session?.provider_token) {
+        await supabase
+          .from("profiles")
+          .update({
+            provider_token: session.provider_token,
+            provider_refresh_token: session.provider_refresh_token ?? null,
+          })
+          .eq("id", session.user.id);
+      }
     } catch (error) {
       if (!isLockError(error)) {
         throw error;
@@ -54,7 +45,18 @@ export async function GET(request: Request) {
       try {
         const retryClient = await createClient();
         await retryClient.auth.exchangeCodeForSession(code);
-        await persistGoogleProviderTokens(retryClient);
+        const {
+          data: { session },
+        } = await retryClient.auth.getSession();
+        if (session?.provider_token) {
+          await retryClient
+            .from("profiles")
+            .update({
+              provider_token: session.provider_token,
+              provider_refresh_token: session.provider_refresh_token ?? null,
+            })
+            .eq("id", session.user.id);
+        }
       } catch (retryError) {
         if (!isLockError(retryError)) {
           throw retryError;
