@@ -1,33 +1,10 @@
-"use client"
-
 import Link from "next/link";
-import { useEffect } from "react";
-import { createClient } from "@/lib/supabase/client";
 import { MobileBottomNav } from "./MobileBottomNav";
 import { NavLinks } from "./NavLinks";
 import { PodcastSwitcher } from "./PodcastSwitcher";
 import { SidebarUser } from "./SidebarUser";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  useEffect(() => {
-    const supabase = createClient()
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === "SIGNED_IN" && session?.provider_token) {
-        await supabase
-          .from("profiles")
-          .update({
-            provider_token: session.provider_token,
-            provider_refresh_token: session.provider_refresh_token ?? null,
-          })
-          .eq("id", session.user.id)
-      }
-    })
-
-    return () => subscription.unsubscribe()
-  }, [])
-
   return (
     <div className="flex min-h-full min-w-0 text-[var(--color-accent-eggshell)]">
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-60 shrink-0 border-r border-[var(--color-border)] bg-[color-mix(in_srgb,var(--color-bg-secondary)_94%,transparent)] backdrop-blur-md lg:flex">

@@ -5,7 +5,7 @@ import { draftOutreachEmail } from "@/app/actions/draft-email";
 import { getPriorityTargets } from "@/app/actions/stats";
 import { DraftEmailModal } from "./DraftEmailModal";
 import { TodoList } from "./TodoList";
-import { PodcastInbox } from "./PodcastInbox";
+import { MyInboxWidget } from "./MyInboxWidget";
 import { usePodcastWorkspace } from "./PodcastWorkspaceProvider";
 import { StageBadge } from "./StageBadge";
 import type { Sponsor } from "@/lib/types";
@@ -307,7 +307,7 @@ export function CommandCenterClient({
                     : status === "error"
                     ? "bg-[var(--color-accent-coral)]"
                     : "bg-[var(--color-accent-primary)] animate-pulse";
-                const chipLabel = key === "gmail" && status === "warning" ? "Auth Required" : label
+                const chipLabel = key === "gmail" && status === "warning" ? "Connect Gmail" : label
                 return (
                   <button
                     key={key}
@@ -434,14 +434,14 @@ export function CommandCenterClient({
           {/* Mobile sidebar */}
           <div className="space-y-4 lg:hidden">
             <TodoList />
-            <PodcastInbox />
+            <MyInboxWidget />
           </div>
         </div>
 
         {/* Desktop sidebar */}
         <aside className="hidden min-w-0 space-y-4 lg:block">
           <TodoList />
-          <PodcastInbox />
+          <MyInboxWidget />
         </aside>
       </div>
     </div>

@@ -29,8 +29,6 @@ export function LoginForm() {
       provider: "google",
       options: {
         redirectTo: `${origin}/auth/callback`,
-        scopes:
-          "email profile https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.send",
       },
     });
     setPending(false);

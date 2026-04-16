@@ -93,13 +93,21 @@ export async function GET() {
     const started = Date.now()
     try {
       const {
-        data: { session },
-      } = await supabase.auth.getSession()
-      if (!session?.provider_token) {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!user) {
         return warn(Date.now() - started, "Auth Required")
       }
+      const { data: row } = await supabase
+        .from("gmail_tokens")
+        .select("access_token")
+        .eq("user_id", user.id)
+        .maybeSingle()
+      if (!row?.access_token) {
+        return warn(Date.now() - started, "Connect Gmail")
+      }
       const gmailRes = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/profile", {
-        headers: { Authorization: `Bearer ${session.provider_token}` },
+        headers: { Authorization: `Bearer ${row.access_token as string}` },
         cache: "no-store",
       })
       if (!gmailRes.ok) {
