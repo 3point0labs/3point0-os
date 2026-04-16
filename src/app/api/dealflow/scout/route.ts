@@ -56,13 +56,12 @@ function emailFromRocketReachProfile(person: RocketReachProfile): string {
 /**
  * POST https://api.rocketreach.co/v2/api/search — returns `profiles`; use first match only.
  */
-async function fetchRocketReachProfile(company: string, targetRole: string): Promise<RocketReachProfile | null> {
-  logRocketReachKey()
-  if (!rrKey?.trim()) return null
-
-  const url = "https://api.rocketreach.co/v2/api/search"
+async function fetchRocketReachProfile(_company: string, _targetRole: string): Promise<RocketReachProfile | null> {
   try {
-    const rrResponse = await fetch(url, {
+    console.log("[RR Debug] Key exists:", !!process.env.ROCKETREACH_API_KEY)
+    console.log("[RR Debug] Key value:", (process.env.ROCKETREACH_API_KEY?.substring(0, 8) || "") + "...")
+
+    const rrResponse = await fetch("https://api.rocketreach.co/v2/api/search", {
       method: "POST",
       headers: {
         "Api-Key": process.env.ROCKETREACH_API_KEY || "",
@@ -70,35 +69,22 @@ async function fetchRocketReachProfile(company: string, targetRole: string): Pro
       },
       body: JSON.stringify({
         query: {
-          current_employer: [company],
-          title: [targetRole],
+          current_employer: ["Nike"],
+          title: ["Head of Partnerships"],
         },
         start: 1,
         pageSize: 1,
       }),
-      cache: "no-store",
     })
 
-    const rawText = await logAndReadBody(rrResponse, "POST /v2/api/search")
-    if (!rrResponse.ok) {
-      console.error("[Scout RR] POST /v2/api/search non-OK")
-      return null
-    }
-
-    let rrData: { profiles?: RocketReachProfile[] }
-    try {
-      rrData = JSON.parse(rawText) as { profiles?: RocketReachProfile[] }
-    } catch (e) {
-      console.error("[Scout RR] POST /v2/api/search JSON parse failed", e instanceof Error ? e.message : e)
-      return null
-    }
-
-    const person = rrData.profiles?.[0]
-    return person ?? null
+    console.log("[RR Debug] Status:", rrResponse.status)
+    const raw = await rrResponse.text()
+    console.log("[RR Debug] Raw response:", raw.substring(0, 500))
   } catch (e) {
-    console.error("[Scout RR] POST /v2/api/search error", e instanceof Error ? e.message : e)
-    return null
+    console.log("[RR Debug] Error:", e instanceof Error ? e.message : String(e))
   }
+
+  return null
 }
 
 export async function POST(req: Request) {
