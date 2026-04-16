@@ -78,9 +78,10 @@ async function fetchRocketReachProfile(company: string, targetRole: string): Pro
       cache: "no-store",
     })
 
-    if (!rrResponse.ok) return null
+    if (rrResponse.status !== 200 && rrResponse.status !== 201) return null
 
     const rrData = (await rrResponse.json()) as { profiles?: RocketReachProfile[] }
+    console.log("[RR] Response data:", JSON.stringify(rrData).substring(0, 500))
     const person = rrData.profiles?.[0]
     return person ?? null
   } catch {
