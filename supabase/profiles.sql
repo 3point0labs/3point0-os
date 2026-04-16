@@ -47,6 +47,8 @@ create or replace trigger on_auth_user_created
 
 -- Optional: track whether user has connected Gmail in-app
 alter table profiles add column if not exists gmail_connected boolean default false;
+alter table profiles add column if not exists provider_token text;
+alter table profiles add column if not exists provider_refresh_token text;
 
 -- Sponsors table additions for Gmail/Calendar workflows
 alter table sponsors add column if not exists scheduled_call_date timestamptz;
