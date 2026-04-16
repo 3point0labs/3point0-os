@@ -25,7 +25,7 @@ type Props = {
 
 function podcastSummary(podcast: DealFlowPodcast) {
   if (podcast === "Pressbox Chronicles") return "Sports storytelling podcast with deep sports media credibility"
-  if (podcast === "BOTH") return "Can run across One54 and Pressbox based on brand fit"
+  if (podcast === "BOTH") return "One54 Africa (Black culture & business, engaged Black professional audience) + Pressbox Chronicles (sports storytelling, press-box credibility). Dual placement opportunity."
   return "Black culture and business podcast with an engaged Black professional audience"
 }
 

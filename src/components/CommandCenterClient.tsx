@@ -24,7 +24,7 @@ type DraftState = {
 };
 
 type HealthService = {
-  status: "ok" | "error";
+  status: "ok" | "warning" | "error";
   latency_ms: number;
   error?: string;
 };
@@ -296,13 +296,18 @@ export function CommandCenterClient({
                   ? "checking"
                   : service?.status === "ok"
                   ? "ok"
+                  : service?.status === "warning"
+                  ? "warning"
                   : "error";
                 const dotClass =
                   status === "ok"
                     ? "bg-emerald-400"
+                    : status === "warning"
+                    ? "bg-amber-400"
                     : status === "error"
                     ? "bg-[var(--color-accent-coral)]"
                     : "bg-[var(--color-accent-primary)] animate-pulse";
+                const chipLabel = key === "gmail" && status === "warning" ? "Auth Required" : label
                 return (
                   <button
                     key={key}
@@ -317,7 +322,7 @@ export function CommandCenterClient({
                     className="relative flex items-center gap-1.5 rounded border border-[var(--color-border)] px-2 py-1 font-mono text-[10px] uppercase tracking-wide text-[var(--color-text-secondary)]"
                   >
                     <span className={`h-2 w-2 rounded-full ${dotClass}`} />
-                    <span>{label}</span>
+                    <span>{chipLabel}</span>
                   </button>
                 );
               })}

@@ -3,7 +3,7 @@ import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 
 type ServiceStatus = {
-  status: "ok" | "error"
+  status: "ok" | "warning" | "error"
   latency_ms: number
   error?: string
 }
@@ -22,6 +22,10 @@ function ok(latency: number): ServiceStatus {
 
 function fail(latency: number, error: string): ServiceStatus {
   return { status: "error", latency_ms: latency, error }
+}
+
+function warn(latency: number, error: string): ServiceStatus {
+  return { status: "warning", latency_ms: latency, error }
 }
 
 export async function GET() {
@@ -92,7 +96,14 @@ export async function GET() {
         data: { session },
       } = await supabase.auth.getSession()
       if (!session?.provider_token) {
-        return fail(Date.now() - started, "No Gmail OAuth token in session")
+        return warn(Date.now() - started, "Auth Required")
+      }
+      const gmailRes = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/profile", {
+        headers: { Authorization: `Bearer ${session.provider_token}` },
+        cache: "no-store",
+      })
+      if (!gmailRes.ok) {
+        return fail(Date.now() - started, `Gmail API returned ${gmailRes.status}`)
       }
       return ok(Date.now() - started)
     } catch (e) {
