@@ -4,12 +4,14 @@ import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { getAppSettings, saveAppSettings } from "@/app/actions/discovery";
 import type { AppSettings } from "@/lib/settings";
+import { createClient } from "@/lib/supabase/client";
 
 export function SettingsClient({ initial }: { initial: AppSettings }) {
   const router = useRouter();
   const [s, setS] = useState(initial);
   const [pending, startTransition] = useTransition();
   const [msg, setMsg] = useState<string | null>(null);
+  const [signingOut, setSigningOut] = useState(false);
 
   useEffect(() => {
     setS(initial);
@@ -128,6 +130,23 @@ export function SettingsClient({ initial }: { initial: AppSettings }) {
         >
           {pending ? "Saving…" : "Save settings"}
         </button>
+
+        <div className="pt-4">
+          <button
+            type="button"
+            disabled={signingOut}
+            className="min-h-10 rounded border border-[rgba(232,83,61,0.28)] bg-[rgba(232,83,61,0.08)] px-3 font-mono text-[10px] uppercase tracking-[0.16em] text-[rgba(232,83,61,0.8)] transition hover:bg-[rgba(232,83,61,0.12)] disabled:opacity-60"
+            onClick={() => {
+              setSigningOut(true);
+              const supabase = createClient();
+              void supabase.auth.signOut().finally(() => {
+                router.replace("/login");
+              });
+            }}
+          >
+            {signingOut ? "SIGNING OUT..." : "SIGN OUT"}
+          </button>
+        </div>
       </section>
     </div>
   );
