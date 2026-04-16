@@ -19,11 +19,22 @@ type InboxEmail = {
 export async function GET() {
   const supabase = await createClient();
 
-  // Get the user's Google OAuth token from Supabase session
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const googleToken = session.provider_token;
+  const { data: profile, error: profileError } = await supabase
+    .from("profiles")
+    .select("provider_token")
+    .eq("id", user.id)
+    .single();
+
+  if (profileError) {
+    return NextResponse.json({ error: profileError.message }, { status: 500 });
+  }
+
+  const googleToken = profile?.provider_token as string | undefined;
   if (!googleToken) {
     return NextResponse.json({ 
       error: "No Google token. Please sign out and sign back in with Google." 

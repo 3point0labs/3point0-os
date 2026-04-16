@@ -13,23 +13,21 @@ async function sleep(ms: number) {
   await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function persistGoogleProviderTokens() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return;
-
+async function persistGoogleProviderTokens(
+  supabase: Awaited<ReturnType<typeof createClient>>
+) {
   const {
     data: { session },
   } = await supabase.auth.getSession();
   if (!session?.provider_token) return;
 
-  const updates = {
-    provider_token: session.provider_token,
-    provider_refresh_token: session.provider_refresh_token ?? null,
-  };
-  const { error } = await supabase.from("profiles").update(updates).eq("id", user.id);
+  const { error } = await supabase
+    .from("profiles")
+    .update({
+      provider_token: session.provider_token,
+      provider_refresh_token: session.provider_refresh_token ?? null,
+    })
+    .eq("id", session.user.id);
   if (error) {
     console.error("[Auth callback] Failed to persist provider tokens:", error.message);
   }
@@ -45,7 +43,7 @@ export async function GET(request: Request) {
     try {
       const supabase = await createClient();
       await supabase.auth.exchangeCodeForSession(code);
-      await persistGoogleProviderTokens();
+      await persistGoogleProviderTokens(supabase);
     } catch (error) {
       if (!isLockError(error)) {
         throw error;
@@ -56,7 +54,7 @@ export async function GET(request: Request) {
       try {
         const retryClient = await createClient();
         await retryClient.auth.exchangeCodeForSession(code);
-        await persistGoogleProviderTokens();
+        await persistGoogleProviderTokens(retryClient);
       } catch (retryError) {
         if (!isLockError(retryError)) {
           throw retryError;
