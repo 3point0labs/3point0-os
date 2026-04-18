@@ -17,7 +17,7 @@ export function PartnershipsSuggestions({ initial }: { initial: PipelineSuggesti
   if (rows.length === 0) return null;
 
   return (
-    <section className="mission-card p-4 ring-1 ring-[rgba(232,83,61,0.25)]">
+    <section className="mission-card p-4 ring-1 ring-[rgba(160,85,42,0.25)]">
       <div className="mb-3 flex items-center gap-2">
         <span className="relative flex h-2 w-2">
           <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--color-accent-coral)] opacity-40" />
@@ -38,8 +38,8 @@ export function PartnershipsSuggestions({ initial }: { initial: PipelineSuggesti
                 <span
                   className={`rounded px-1.5 py-0.5 font-mono text-[9px] uppercase ${
                     s.podcast === "One54"
-                      ? "bg-[rgba(201,168,124,0.18)] text-[var(--color-accent-primary)]"
-                      : "bg-[rgba(232,83,61,0.14)] text-[var(--color-accent-coral)]"
+                      ? "bg-[rgba(139,69,19,0.18)] text-[var(--color-accent-primary)]"
+                      : "bg-[rgba(160,85,42,0.14)] text-[var(--color-accent-coral)]"
                   }`}
                 >
                   {s.podcast === "One54" ? "ONE54" : "PRESSBOX"}

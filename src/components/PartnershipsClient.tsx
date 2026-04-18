@@ -16,10 +16,10 @@ const SCOPE_OPTIONS: { key: PartnershipsScopeFilter; label: string }[] = [
 
 function channelBadge(channel: string) {
   if (channel === "COMBINATION")
-    return "border-[rgba(201,168,124,0.5)] bg-[rgba(201,168,124,0.12)] text-[var(--color-accent-primary)]";
+    return "border-[rgba(139,69,19,0.5)] bg-[rgba(139,69,19,0.12)] text-[var(--color-accent-primary)]";
   if (channel === "LINKEDIN DM")
     return "border-[rgba(0,119,181,0.5)] bg-[rgba(0,119,181,0.12)] text-[#0077b5]";
-  return "border-[rgba(232,83,61,0.4)] bg-[rgba(232,83,61,0.1)] text-[var(--color-accent-coral)]";
+  return "border-[rgba(160,85,42,0.4)] bg-[rgba(160,85,42,0.1)] text-[var(--color-accent-coral)]";
 }
 
 function OutreachQueue({ podcast }: { podcast: "One54" | "Pressbox Chronicles" }) {
@@ -66,7 +66,7 @@ function OutreachQueue({ podcast }: { podcast: "One54" | "Pressbox Chronicles" }
             Outreach Queue
           </h2>
           {!loading && visible.length > 0 && (
-            <span className="rounded-full bg-[rgba(232,83,61,0.2)] px-2 py-0.5 font-mono text-[10px] text-[var(--color-accent-coral)]">
+            <span className="rounded-full bg-[rgba(160,85,42,0.2)] px-2 py-0.5 font-mono text-[10px] text-[var(--color-accent-coral)]">
               {visible.length}
             </span>
           )}
@@ -162,7 +162,7 @@ function OutreachQueue({ podcast }: { podcast: "One54" | "Pressbox Chronicles" }
                         href={`mailto:${item.sponsor.email}?subject=${encodeURIComponent(
                           `${item.sponsor.company} x ${podcast} sponsorship`
                         )}&body=${encodeURIComponent(item.draft)}`}
-                        className="min-h-9 rounded-md border border-[rgba(232,83,61,0.4)] bg-[rgba(232,83,61,0.1)] px-3 font-mono text-[10px] uppercase tracking-wider text-[var(--color-accent-coral)]"
+                        className="min-h-9 rounded-md border border-[rgba(160,85,42,0.4)] bg-[rgba(160,85,42,0.1)] px-3 font-mono text-[10px] uppercase tracking-wider text-[var(--color-accent-coral)]"
                       >
                         Open in Mail
                       </a>

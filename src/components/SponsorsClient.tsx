@@ -262,9 +262,9 @@ function daysSince(dateStr: string) {
 function tierClass(tier?: string) {
   const t = (tier ?? "").trim().toUpperCase();
   if (t === "S")
-    return "border-[rgba(201,168,124,0.5)] bg-[rgba(201,168,124,0.12)] text-[var(--color-accent-primary)]";
-  if (t === "A") return "border-[rgba(232,83,61,0.4)] bg-[rgba(232,83,61,0.1)] text-[var(--color-accent-coral)]";
-  return "border-[rgba(138,138,122,0.4)] bg-[rgba(138,138,122,0.1)] text-[var(--color-text-secondary)]";
+    return "border-[rgba(139,69,19,0.5)] bg-[rgba(139,69,19,0.12)] text-[var(--color-accent-primary)]";
+  if (t === "A") return "border-[rgba(160,85,42,0.4)] bg-[rgba(160,85,42,0.1)] text-[var(--color-accent-coral)]";
+  return "border-[rgba(107,90,74,0.4)] bg-[rgba(107,90,74,0.1)] text-[var(--color-text-secondary)]";
 }
 
 function toGoogleCalendarDate(iso: string) {
@@ -691,11 +691,11 @@ export function SponsorsClient({
             <button
               type="button"
               onClick={() => setDiscoverOpen(true)}
-              className="min-h-11 w-full rounded-lg border border-[var(--color-border-strong)] bg-transparent px-3 py-2 font-mono text-xs uppercase tracking-wider text-[var(--color-accent-primary)] hover:bg-[rgba(201,168,124,0.08)] lg:w-auto lg:min-h-0 lg:py-1.5"
+              className="min-h-11 w-full rounded-lg border border-[var(--color-border-strong)] bg-transparent px-3 py-2 font-mono text-xs uppercase tracking-wider text-[var(--color-accent-primary)] hover:bg-[rgba(139,69,19,0.08)] lg:w-auto lg:min-h-0 lg:py-1.5"
             >
               Discover new sponsors
             </button>
-            <label className="flex min-h-11 w-full cursor-pointer items-center justify-center rounded-lg border border-[rgba(232,83,61,0.45)] bg-[rgba(232,83,61,0.12)] px-3 py-2 font-mono text-xs uppercase tracking-wider text-[var(--color-accent-coral)] hover:bg-[rgba(232,83,61,0.18)] lg:w-auto lg:min-h-0 lg:py-1.5">
+            <label className="flex min-h-11 w-full cursor-pointer items-center justify-center rounded-lg border border-[rgba(160,85,42,0.45)] bg-[rgba(160,85,42,0.12)] px-3 py-2 font-mono text-xs uppercase tracking-wider text-[var(--color-accent-coral)] hover:bg-[rgba(160,85,42,0.18)] lg:w-auto lg:min-h-0 lg:py-1.5">
               Import CSV
               <input
                 type="file"
@@ -717,7 +717,7 @@ export function SponsorsClient({
                   sponsorsToExportCsv(list)
                 );
               }}
-              className="min-h-11 w-full rounded-lg border border-[var(--color-border)] bg-transparent px-3 py-2 font-mono text-xs uppercase tracking-wider text-[var(--color-accent-primary)] hover:bg-[rgba(201,168,124,0.06)] lg:w-auto lg:min-h-0 lg:py-1.5"
+              className="min-h-11 w-full rounded-lg border border-[var(--color-border)] bg-transparent px-3 py-2 font-mono text-xs uppercase tracking-wider text-[var(--color-accent-primary)] hover:bg-[rgba(139,69,19,0.06)] lg:w-auto lg:min-h-0 lg:py-1.5"
             >
               Export One54 CSV
             </button>
@@ -730,14 +730,14 @@ export function SponsorsClient({
                   sponsorsToExportCsv(list)
                 );
               }}
-              className="min-h-11 w-full rounded-lg border border-[var(--color-border)] bg-transparent px-3 py-2 font-mono text-xs uppercase tracking-wider text-[var(--color-accent-primary)] hover:bg-[rgba(201,168,124,0.06)] lg:w-auto lg:min-h-0 lg:py-1.5"
+              className="min-h-11 w-full rounded-lg border border-[var(--color-border)] bg-transparent px-3 py-2 font-mono text-xs uppercase tracking-wider text-[var(--color-accent-primary)] hover:bg-[rgba(139,69,19,0.06)] lg:w-auto lg:min-h-0 lg:py-1.5"
             >
               Export Pressbox CSV
             </button>
             <button
               type="button"
               onClick={() => setNewOpen(true)}
-              className="min-h-11 w-full rounded-lg border border-[var(--color-border-strong)] bg-[rgba(201,168,124,0.08)] px-3 py-2 font-mono text-xs uppercase tracking-wider text-[var(--color-accent-primary)] hover:bg-[rgba(201,168,124,0.14)] lg:w-auto lg:min-h-0 lg:py-1.5"
+              className="min-h-11 w-full rounded-lg border border-[var(--color-border-strong)] bg-[rgba(139,69,19,0.08)] px-3 py-2 font-mono text-xs uppercase tracking-wider text-[var(--color-accent-primary)] hover:bg-[rgba(139,69,19,0.14)] lg:w-auto lg:min-h-0 lg:py-1.5"
             >
               + New contact
             </button>
@@ -883,7 +883,7 @@ export function SponsorsClient({
                           durationMins: 30,
                         })
                       }
-                      className="mt-2 min-h-11 w-full rounded-md border border-[rgba(201,168,124,0.45)] bg-[rgba(201,168,124,0.1)] py-2 font-mono text-[10px] uppercase tracking-wider text-[var(--color-accent-primary)] hover:bg-[rgba(201,168,124,0.2)]"
+                      className="mt-2 min-h-11 w-full rounded-md border border-[rgba(139,69,19,0.45)] bg-[rgba(139,69,19,0.1)] py-2 font-mono text-[10px] uppercase tracking-wider text-[var(--color-accent-primary)] hover:bg-[rgba(139,69,19,0.2)]"
                     >
                       📅 Schedule call
                     </button>
@@ -899,7 +899,7 @@ export function SponsorsClient({
                           pitch_angle: s.pitch_angle ?? "",
                         })
                       }
-                      className="mt-2 min-h-11 w-full rounded-md border border-[var(--color-border-strong)] bg-[rgba(201,168,124,0.08)] py-2 font-mono text-[10px] uppercase tracking-wider text-[var(--color-accent-primary)] hover:bg-[rgba(201,168,124,0.14)]"
+                      className="mt-2 min-h-11 w-full rounded-md border border-[var(--color-border-strong)] bg-[rgba(139,69,19,0.08)] py-2 font-mono text-[10px] uppercase tracking-wider text-[var(--color-accent-primary)] hover:bg-[rgba(139,69,19,0.14)]"
                     >
                       Quick edit
                     </button>
@@ -929,7 +929,7 @@ function CategoryTab({
       onClick={onClick}
       className={`min-h-9 rounded-md border px-2.5 py-2 font-mono text-[10px] uppercase tracking-wider transition lg:min-h-0 lg:py-1 ${
         active
-          ? "border-[rgba(201,168,124,0.5)] bg-[rgba(201,168,124,0.12)] text-[var(--color-accent-primary)]"
+          ? "border-[rgba(139,69,19,0.5)] bg-[rgba(139,69,19,0.12)] text-[var(--color-accent-primary)]"
           : "border-[var(--color-border)] text-[var(--color-text-secondary)] hover:text-[var(--color-accent-eggshell)]"
       }`}
     >
@@ -985,7 +985,7 @@ function NewContactModal({
               type="button"
               onClick={onFindContact}
               disabled={findLoading}
-              className="min-h-11 rounded-md border border-[var(--color-border-strong)] bg-[rgba(201,168,124,0.1)] px-3 font-mono text-[11px] uppercase tracking-wider text-[var(--color-accent-primary)]"
+              className="min-h-11 rounded-md border border-[var(--color-border-strong)] bg-[rgba(139,69,19,0.1)] px-3 font-mono text-[11px] uppercase tracking-wider text-[var(--color-accent-primary)]"
             >
               {findLoading ? "Searching..." : "Find contact"}
             </button>
@@ -1160,7 +1160,7 @@ function ScheduleCallModal({
           <button
             onClick={onConfirm}
             disabled={pending || !data.dateTimeLocal}
-            className="min-h-11 rounded-md border border-[rgba(201,168,124,0.45)] bg-[rgba(201,168,124,0.1)] px-3 py-2 font-mono text-xs uppercase tracking-wider text-[var(--color-accent-primary)] hover:bg-[rgba(201,168,124,0.2)] disabled:opacity-50 lg:min-h-0 lg:py-1.5"
+            className="min-h-11 rounded-md border border-[rgba(139,69,19,0.45)] bg-[rgba(139,69,19,0.1)] px-3 py-2 font-mono text-xs uppercase tracking-wider text-[var(--color-accent-primary)] hover:bg-[rgba(139,69,19,0.2)] disabled:opacity-50 lg:min-h-0 lg:py-1.5"
           >
             Create calendar draft
           </button>

@@ -32,8 +32,8 @@ type ScanOpportunityRow = {
 function urgencyStyle(u: string): string {
   if (u === "high")
     return "border-[rgba(var(--accent-rgb),0.45)] text-[color:var(--accent)]";
-  if (u === "medium") return "border-[rgba(232,83,61,0.4)] text-[var(--color-accent-coral)]";
-  return "border-[rgba(138,138,122,0.45)] text-[var(--color-text-secondary)]";
+  if (u === "medium") return "border-[rgba(160,85,42,0.4)] text-[var(--color-accent-coral)]";
+  return "border-[rgba(107,90,74,0.45)] text-[var(--color-text-secondary)]";
 }
 
 function ViewsBar({ episodes }: { episodes: Episode[] }) {
@@ -372,7 +372,7 @@ export function IntelligenceClient({
           </h1>
           <div className="relative">
             {showScanConfirm ? (
-              <div className="flex items-center gap-2 rounded-md border border-[rgba(232,83,61,0.5)] bg-[rgba(232,83,61,0.1)] px-3 py-2">
+              <div className="flex items-center gap-2 rounded-md border border-[rgba(160,85,42,0.5)] bg-[rgba(160,85,42,0.1)] px-3 py-2">
                 <span className="font-mono text-xs text-[var(--color-accent-coral)]">
                   {uncachedCount} new episode{uncachedCount !== 1 ? "s" : ""} — run Claude on all?
                 </span>
@@ -484,7 +484,7 @@ export function IntelligenceClient({
                   type="button"
                   onClick={() => setSelectedId(ep.id)}
                   className={`glass-card flex w-full gap-3 rounded-lg p-3 text-left transition-colors ${
-                    isActive ? "ring-1 ring-[rgba(201,168,124,0.45)]" : "hover:brightness-110"
+                    isActive ? "ring-1 ring-[rgba(139,69,19,0.45)]" : "hover:brightness-110"
                   }`}
                 >
                   <div className="relative shrink-0">

@@ -38,7 +38,7 @@ export function PodcastSwitcher({ variant = "sidebar" }: { variant?: "sidebar" |
               isDock ? "min-h-11 py-2.5 lg:min-h-0 lg:py-1.5" : "py-1.5"
             } ${
               activePodcast === "One54"
-                ? "bg-[rgba(201,168,124,0.18)] text-[var(--color-accent-primary)]"
+                ? "bg-[rgba(139,69,19,0.18)] text-[var(--color-accent-primary)]"
                 : "text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-tertiary)] hover:text-[var(--color-accent-eggshell)]"
             }`}
           >
@@ -53,7 +53,7 @@ export function PodcastSwitcher({ variant = "sidebar" }: { variant?: "sidebar" |
               isDock ? "min-h-11 py-2.5 lg:min-h-0 lg:py-1.5" : "py-1.5"
             } ${
               activePodcast === "Pressbox Chronicles"
-                ? "bg-[rgba(232,83,61,0.16)] text-[var(--color-accent-coral)]"
+                ? "bg-[rgba(160,85,42,0.16)] text-[var(--color-accent-coral)]"
                 : "text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-tertiary)] hover:text-[var(--color-accent-eggshell)]"
             }`}
           >

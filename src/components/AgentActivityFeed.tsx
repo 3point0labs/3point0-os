@@ -57,9 +57,9 @@ export function AgentActivityFeed() {
 
   const levelClass = useMemo(
     () => ({
-      teal: "border-[rgba(201,168,124,0.45)] text-[var(--color-accent-primary)]",
+      teal: "border-[rgba(139,69,19,0.45)] text-[var(--color-accent-primary)]",
       purple: "border-[rgba(167,139,250,0.45)] text-[#c4b5fd]",
-      amber: "border-[rgba(232,83,61,0.45)] text-[var(--color-accent-coral)]",
+      amber: "border-[rgba(160,85,42,0.45)] text-[var(--color-accent-coral)]",
     }),
     []
   );

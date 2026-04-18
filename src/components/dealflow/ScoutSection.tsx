@@ -17,8 +17,8 @@ type Props = {
 
 function confidenceClass(confidence: DealFlowConfidence) {
   if (confidence === "VERIFIED") return "bg-emerald-600/20 text-emerald-300 border-emerald-500/40"
-  if (confidence === "CONSTRUCTED") return "bg-[rgba(201,168,124,0.16)] text-[var(--color-accent-primary)] border-[rgba(201,168,124,0.4)]"
-  return "bg-[rgba(232,83,61,0.12)] text-[var(--color-accent-coral)] border-[rgba(232,83,61,0.4)]"
+  if (confidence === "CONSTRUCTED") return "bg-[rgba(139,69,19,0.16)] text-[var(--color-accent-primary)] border-[rgba(139,69,19,0.4)]"
+  return "bg-[rgba(160,85,42,0.12)] text-[var(--color-accent-coral)] border-[rgba(160,85,42,0.4)]"
 }
 
 export function ScoutSection({

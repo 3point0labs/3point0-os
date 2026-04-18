@@ -119,7 +119,7 @@ export function TodoList() {
               <button
                 type="button"
                 onClick={() => handleRemove(item.id)}
-                className="shrink-0 rounded px-2 py-1 font-mono text-[10px] uppercase text-[var(--color-accent-coral)] hover:bg-[rgba(232,83,61,0.12)]"
+                className="shrink-0 rounded px-2 py-1 font-mono text-[10px] uppercase text-[var(--color-accent-coral)] hover:bg-[rgba(160,85,42,0.12)]"
                 aria-label={`Remove ${item.text}`}
               >
                 Remove

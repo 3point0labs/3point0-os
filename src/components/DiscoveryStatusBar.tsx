@@ -64,7 +64,7 @@ export function DiscoveryStatusBar({ lastRunAt }: { lastRunAt: string | null }) 
       <button
         onClick={handleRunNow}
         disabled={status === "running"}
-        className="flex items-center gap-1.5 rounded border border-[rgba(201,168,124,0.3)] bg-[rgba(201,168,124,0.06)] px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider text-[var(--color-accent-primary)] transition hover:bg-[rgba(201,168,124,0.12)] disabled:opacity-50"
+        className="flex items-center gap-1.5 rounded border border-[rgba(139,69,19,0.3)] bg-[rgba(139,69,19,0.06)] px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider text-[var(--color-accent-primary)] transition hover:bg-[rgba(139,69,19,0.12)] disabled:opacity-50"
       >
         {status === "running" ? (
           <>

@@ -51,7 +51,7 @@ export function SettingsClient({ initial }: { initial: AppSettings }) {
                 onClick={() => setS((prev) => ({ ...prev, frequency: f }))}
                 className={`min-h-11 rounded border px-3 py-2 font-mono text-xs uppercase lg:min-h-0 lg:py-1.5 ${
                   s.frequency === f
-                    ? "border-[rgba(201,168,124,0.5)] text-[var(--color-accent-primary)]"
+                    ? "border-[rgba(139,69,19,0.5)] text-[var(--color-accent-primary)]"
                     : "border-[var(--color-border)] text-[var(--color-text-secondary)]"
                 }`}
               >
@@ -70,7 +70,7 @@ export function SettingsClient({ initial }: { initial: AppSettings }) {
                 onClick={() => setS((prev) => ({ ...prev, contactsPerRun: n }))}
                 className={`min-h-11 rounded border px-3 py-2 font-mono text-xs lg:min-h-0 lg:py-1.5 ${
                   s.contactsPerRun === n
-                    ? "border-[rgba(201,168,124,0.5)] text-[var(--color-accent-primary)]"
+                    ? "border-[rgba(139,69,19,0.5)] text-[var(--color-accent-primary)]"
                     : "border-[var(--color-border)] text-[var(--color-text-secondary)]"
                 }`}
               >
@@ -87,7 +87,7 @@ export function SettingsClient({ initial }: { initial: AppSettings }) {
               onClick={() => togglePodcast("One54")}
               className={`min-h-11 rounded border px-3 py-2 font-mono text-xs uppercase lg:min-h-0 lg:py-1.5 ${
                 s.podcasts.includes("One54")
-                  ? "border-[rgba(201,168,124,0.5)] text-[var(--color-accent-primary)]"
+                  ? "border-[rgba(139,69,19,0.5)] text-[var(--color-accent-primary)]"
                   : "border-[var(--color-border)] text-[var(--color-text-secondary)]"
               }`}
             >
@@ -98,7 +98,7 @@ export function SettingsClient({ initial }: { initial: AppSettings }) {
               onClick={() => togglePodcast("Pressbox Chronicles")}
               className={`min-h-11 rounded border px-3 py-2 font-mono text-xs uppercase lg:min-h-0 lg:py-1.5 ${
                 s.podcasts.includes("Pressbox Chronicles")
-                  ? "border-[rgba(232,83,61,0.5)] text-[var(--color-accent-coral)]"
+                  ? "border-[rgba(160,85,42,0.5)] text-[var(--color-accent-coral)]"
                   : "border-[var(--color-border)] text-[var(--color-text-secondary)]"
               }`}
             >
@@ -135,7 +135,7 @@ export function SettingsClient({ initial }: { initial: AppSettings }) {
           <button
             type="button"
             disabled={signingOut}
-            className="min-h-10 rounded border border-[rgba(232,83,61,0.28)] bg-[rgba(232,83,61,0.08)] px-3 font-mono text-[10px] uppercase tracking-[0.16em] text-[rgba(232,83,61,0.8)] transition hover:bg-[rgba(232,83,61,0.12)] disabled:opacity-60"
+            className="min-h-10 rounded border border-[rgba(160,85,42,0.28)] bg-[rgba(160,85,42,0.08)] px-3 font-mono text-[10px] uppercase tracking-[0.16em] text-[rgba(160,85,42,0.8)] transition hover:bg-[rgba(160,85,42,0.12)] disabled:opacity-60"
             onClick={async () => {
               setSigningOut(true);
               const supabase = createClient()

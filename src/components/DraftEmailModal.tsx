@@ -103,7 +103,7 @@ export function DraftEmailModal({
           <button
             type="button"
             onClick={onClose}
-            className="min-h-11 rounded-lg border border-[var(--color-border)] p-2 text-[var(--color-text-secondary)] hover:bg-[rgba(201,168,124,0.1)] hover:text-[var(--color-accent-eggshell)]"
+            className="min-h-11 rounded-lg border border-[var(--color-border)] p-2 text-[var(--color-text-secondary)] hover:bg-[rgba(139,69,19,0.1)] hover:text-[var(--color-accent-eggshell)]"
             aria-label="Close"
           >
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -117,7 +117,7 @@ export function DraftEmailModal({
             <p className="font-mono text-sm text-[var(--color-accent-primary)]">Drafting with Claude...</p>
           )}
           {!loading && !error && recommendedChannel && (
-            <div className="mb-3 rounded-lg border border-[rgba(232,83,61,0.35)] bg-[rgba(232,83,61,0.1)] px-3 py-2">
+            <div className="mb-3 rounded-lg border border-[rgba(160,85,42,0.35)] bg-[rgba(160,85,42,0.1)] px-3 py-2">
               <p className="font-mono text-[11px] uppercase tracking-wider text-[var(--color-accent-coral)]">
                 RECOMMENDED CHANNEL: {recommendedChannel}
               </p>
@@ -155,7 +155,7 @@ export function DraftEmailModal({
               type="button"
               onClick={handleOpenGmailCompose}
               disabled={loading || !body || !!error || !toEmail}
-              className="min-h-11 rounded-lg border border-[rgba(232,83,61,0.45)] bg-[rgba(232,83,61,0.12)] px-4 py-2 font-mono text-xs uppercase tracking-wider text-[var(--color-accent-coral)] transition hover:bg-[rgba(232,83,61,0.2)] disabled:cursor-not-allowed disabled:opacity-40"
+              className="min-h-11 rounded-lg border border-[rgba(160,85,42,0.45)] bg-[rgba(160,85,42,0.12)] px-4 py-2 font-mono text-xs uppercase tracking-wider text-[var(--color-accent-coral)] transition hover:bg-[rgba(160,85,42,0.2)] disabled:cursor-not-allowed disabled:opacity-40"
             >
               <span className="inline-flex items-center gap-2">
                 <GmailIcon />
@@ -173,7 +173,7 @@ export function DraftEmailModal({
             <button
               type="button"
               onClick={onClose}
-              className="min-h-11 rounded-lg border border-[var(--color-border)] px-4 py-2 font-mono text-xs uppercase tracking-wider text-[var(--color-text-secondary)] hover:bg-[rgba(201,168,124,0.08)]"
+              className="min-h-11 rounded-lg border border-[var(--color-border)] px-4 py-2 font-mono text-xs uppercase tracking-wider text-[var(--color-text-secondary)] hover:bg-[rgba(139,69,19,0.08)]"
             >
               Close
             </button>

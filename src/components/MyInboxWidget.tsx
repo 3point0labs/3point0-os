@@ -76,7 +76,7 @@ export function MyInboxWidget() {
           </p>
           <a
             href="/api/gmail/connect"
-            className="inline-flex min-h-10 items-center justify-center rounded border border-[var(--color-border)] bg-[rgba(10,15,26,0.6)] px-3 font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--color-accent-eggshell)] transition hover:border-[rgba(201,168,124,0.35)]"
+            className="inline-flex min-h-10 items-center justify-center rounded border border-[var(--color-border)] bg-[rgba(42,31,23,0.6)] px-3 font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--color-accent-eggshell)] transition hover:border-[rgba(139,69,19,0.35)]"
           >
             Connect Gmail
           </a>
@@ -90,12 +90,12 @@ export function MyInboxWidget() {
               href="https://mail.google.com/mail/u/0/#inbox"
               target="_blank"
               rel="noopener noreferrer"
-              className="font-mono text-[10px] uppercase tracking-wider text-[rgba(232,83,61,0.85)] underline-offset-2 hover:underline"
+              className="font-mono text-[10px] uppercase tracking-wider text-[rgba(160,85,42,0.85)] underline-offset-2 hover:underline"
             >
               OPEN GMAIL
             </a>
           </div>
-          {error && <p className="text-xs text-[rgba(232,83,61,0.9)]">{error}</p>}
+          {error && <p className="text-xs text-[rgba(160,85,42,0.9)]">{error}</p>}
           {emails.length === 0 && !error && (
             <p className="text-xs text-[var(--color-text-secondary)]">
               No messages match sponsor / partnership keywords yet.
@@ -105,7 +105,7 @@ export function MyInboxWidget() {
             {emails.map((e) => (
               <li
                 key={e.id}
-                className="rounded border border-[var(--color-border)] bg-[rgba(10,15,26,0.45)] px-3 py-2 text-xs"
+                className="rounded border border-[var(--color-border)] bg-[rgba(42,31,23,0.45)] px-3 py-2 text-xs"
               >
                 <p className="truncate font-mono text-[11px] text-[var(--color-accent-eggshell)]">{e.subject}</p>
                 <p className="mt-1 truncate text-[var(--color-text-secondary)]">{e.from}</p>

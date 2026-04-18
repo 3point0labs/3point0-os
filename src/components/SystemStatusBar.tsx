@@ -36,7 +36,7 @@ export function SystemStatusBar() {
       <div className="min-h-11 font-mono text-xs tabular-nums text-[var(--color-accent-eggshell)]">
         {mounted && now ? formatNow(now) : "--:--:--"}
       </div>
-      <div className="min-h-11 rounded-md border border-[var(--color-border)] bg-[rgba(201,168,124,0.08)] px-2.5 py-2 font-mono text-xs tracking-wider text-[var(--color-accent-primary)]">
+      <div className="min-h-11 rounded-md border border-[var(--color-border)] bg-[rgba(139,69,19,0.08)] px-2.5 py-2 font-mono text-xs tracking-wider text-[var(--color-accent-primary)]">
         AGENTS: 2 ACTIVE
       </div>
       <div className="leather-progress hidden w-full basis-full sm:block sm:max-w-xs" aria-hidden />

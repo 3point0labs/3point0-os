@@ -38,11 +38,11 @@ export function NavLinks() {
             className={`relative flex min-h-[44px] items-center justify-between gap-2 rounded-lg border border-transparent py-2.5 pl-3 pr-3 font-mono text-xs uppercase tracking-wider transition lg:min-h-0 ${
               isSettings
                 ? active
-                  ? "border-l-[3px] border-l-[var(--color-accent-primary)] bg-[rgba(201,168,124,0.08)] pl-2.5 text-[var(--color-accent-eggshell)]"
-                  : "mt-auto text-[var(--color-text-secondary)] hover:border-[var(--color-border)] hover:bg-[rgba(201,168,124,0.04)] hover:text-[var(--color-accent-eggshell)]"
+                  ? "border-l-[3px] border-l-[var(--color-accent-primary)] bg-[rgba(139,69,19,0.08)] pl-2.5 text-[var(--color-accent-eggshell)]"
+                  : "mt-auto text-[var(--color-text-secondary)] hover:border-[var(--color-border)] hover:bg-[rgba(139,69,19,0.04)] hover:text-[var(--color-accent-eggshell)]"
                 : active
-                ? "border-l-[3px] border-l-[var(--color-accent-primary)] bg-[rgba(201,168,124,0.08)] pl-2.5 text-[var(--color-accent-eggshell)]"
-                : "text-[var(--color-text-secondary)] hover:border-[var(--color-border)] hover:bg-[rgba(201,168,124,0.04)] hover:text-[var(--color-accent-eggshell)]"
+                ? "border-l-[3px] border-l-[var(--color-accent-primary)] bg-[rgba(139,69,19,0.08)] pl-2.5 text-[var(--color-accent-eggshell)]"
+                : "text-[var(--color-text-secondary)] hover:border-[var(--color-border)] hover:bg-[rgba(139,69,19,0.04)] hover:text-[var(--color-accent-eggshell)]"
             }`}
           >
             <span className="flex items-center gap-2">
@@ -62,7 +62,7 @@ export function NavLinks() {
               <span>{item.label}</span>
             </span>
             {showBadge && (
-              <span className="relative shrink-0 rounded border border-[rgba(232,83,61,0.45)] bg-[rgba(232,83,61,0.12)] px-1.5 py-0.5 font-mono text-[10px] text-[var(--color-accent-coral)]">
+              <span className="relative shrink-0 rounded border border-[rgba(160,85,42,0.45)] bg-[rgba(160,85,42,0.12)] px-1.5 py-0.5 font-mono text-[10px] text-[var(--color-accent-coral)]">
                 {suggestionCount} new
               </span>
             )}

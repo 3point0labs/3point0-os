@@ -30,7 +30,7 @@ function toYmd(d: Date) {
 }
 
 function statusClass(s: ProductionStatus) {
-  if (s === "Published") return "text-[var(--color-accent-primary)] border-[rgba(201,168,124,0.4)]";
+  if (s === "Published") return "text-[var(--color-accent-primary)] border-[rgba(139,69,19,0.4)]";
   if (s === "Recording") return "text-[#f59e0b] border-[#f59e0b44]";
   if (s === "Editing") return "text-[#a78bfa] border-[#a78bfa44]";
   return "text-[var(--color-text-secondary)] border-[var(--color-border)]";
@@ -96,7 +96,7 @@ export function ProductionCalendarPanel({ initial }: { initial: ProductionEpisod
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="min-h-9 rounded border border-[rgba(201,168,124,0.4)] px-2 py-1 font-mono text-[10px] uppercase tracking-wider text-[var(--color-accent-primary)] hover:bg-[rgba(201,168,124,0.1)]"
+          className="min-h-9 rounded border border-[rgba(139,69,19,0.4)] px-2 py-1 font-mono text-[10px] uppercase tracking-wider text-[var(--color-accent-primary)] hover:bg-[rgba(139,69,19,0.1)]"
         >
           + Add episode
         </button>
@@ -177,8 +177,8 @@ export function ProductionCalendarPanel({ initial }: { initial: ProductionEpisod
                 <span
                   className={`rounded px-1.5 py-0.5 font-mono text-[9px] uppercase ${
                     e.podcast === "One54"
-                      ? "bg-[rgba(201,168,124,0.18)] text-[var(--color-accent-primary)]"
-                      : "bg-[rgba(232,83,61,0.14)] text-[var(--color-accent-coral)]"
+                      ? "bg-[rgba(139,69,19,0.18)] text-[var(--color-accent-primary)]"
+                      : "bg-[rgba(160,85,42,0.14)] text-[var(--color-accent-coral)]"
                   }`}
                 >
                   {e.podcast === "One54" ? "ONE54" : "PRESSBOX"}
@@ -246,7 +246,7 @@ export function ProductionCalendarPanel({ initial }: { initial: ProductionEpisod
                       onClick={() => setForm((f) => ({ ...f, podcast: p }))}
                       className={`min-h-11 rounded border px-2 py-2 font-mono text-[10px] uppercase lg:min-h-0 lg:py-1 ${
                         form.podcast === p
-                          ? "border-[rgba(201,168,124,0.5)] text-[var(--color-accent-primary)]"
+                          ? "border-[rgba(139,69,19,0.5)] text-[var(--color-accent-primary)]"
                           : "border-[var(--color-border)] text-[var(--color-text-secondary)]"
                       }`}
                     >

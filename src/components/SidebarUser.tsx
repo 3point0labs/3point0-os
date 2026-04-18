@@ -38,7 +38,7 @@ export function SidebarUser() {
     <div className="mt-2 border-t border-[var(--color-border)] px-2 py-3">
       <div className="flex items-center gap-2">
         <div
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[rgba(201,168,124,0.35)] bg-[rgba(201,168,124,0.12)] font-mono text-sm font-medium text-[var(--color-accent-primary)]"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[rgba(139,69,19,0.35)] bg-[rgba(139,69,19,0.12)] font-mono text-sm font-medium text-[var(--color-accent-primary)]"
           aria-hidden
         >
           {initial}

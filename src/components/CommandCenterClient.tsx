@@ -418,7 +418,7 @@ export function CommandCenterClient({
                   <p className="font-medium text-[var(--color-accent-eggshell)]">{item.s.company}</p>
                   <p className="mt-1 text-sm text-[var(--color-text-secondary)]">{item.s.contactName}</p>
                   <div className="mt-2 flex flex-wrap items-center gap-2">
-                    <span className="rounded border border-[rgba(232,83,61,0.4)] bg-[rgba(232,83,61,0.1)] px-2 py-1 font-mono text-[10px] uppercase text-[var(--color-accent-coral)]">
+                    <span className="rounded border border-[rgba(160,85,42,0.4)] bg-[rgba(160,85,42,0.1)] px-2 py-1 font-mono text-[10px] uppercase text-[var(--color-accent-coral)]">
                       {localChannel(item.s)}
                     </span>
                     <StageBadge stage={item.s.stage} />

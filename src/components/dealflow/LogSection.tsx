@@ -71,7 +71,7 @@ export function LogSection({ contacts, loading, error, onStatusChange, onDelete 
                   <button
                     type="button"
                     onClick={() => onDelete(c.id)}
-                    className="rounded border border-[rgba(232,83,61,0.35)] px-2 py-1 font-mono text-[10px] uppercase tracking-wider text-[var(--color-accent-coral)]"
+                    className="rounded border border-[rgba(160,85,42,0.35)] px-2 py-1 font-mono text-[10px] uppercase tracking-wider text-[var(--color-accent-coral)]"
                   >
                     Delete
                   </button>
