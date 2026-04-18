@@ -2,6 +2,7 @@ import {
   Application,
   Container,
   FederatedPointerEvent,
+  Graphics,
   TextureSource,
   Ticker,
 } from "pixi.js"
@@ -183,17 +184,43 @@ export class MailroomEngine {
 
   private handleClick(event: FederatedPointerEvent) {
     if (!this.app) return
-    const { tileSize, zoom, cols, rows } = this.layout
+    const { tileSize, cols, rows } = this.layout
     const local = this.world.toLocal(event.global)
     const tx = Math.floor(local.x / tileSize)
     const ty = Math.floor(local.y / tileSize)
     if (tx < 0 || ty < 0 || tx >= cols || ty >= rows) return
     const target = { x: tx, y: ty }
     this.events.onTileClick?.(target)
+    this.spawnClickMarker(target)
     if (this.playerKey) {
       this.moveCharacterTo(this.playerKey, target)
     }
-    void zoom
+  }
+
+  // Quick cognac ring at the clicked tile. Fades + scales over ~400ms,
+  // self-destructs, no leaked tickers.
+  private spawnClickMarker(target: TilePos) {
+    if (!this.app) return
+    const { tileSize } = this.layout
+    const ring = new Graphics()
+      .circle(0, 0, 5)
+      .stroke({ color: 0x8b4513, width: 1, alpha: 1 })
+    ring.x = target.x * tileSize + tileSize / 2
+    ring.y = target.y * tileSize + tileSize / 2
+    this.world.addChild(ring)
+    let elapsed = 0
+    const tickerRef = this.app.ticker
+    const cb = (ticker: Ticker) => {
+      elapsed += ticker.deltaMS
+      const t = Math.min(1, elapsed / 400)
+      ring.alpha = 1 - t
+      ring.scale.set(1 + t * 0.8)
+      if (t >= 1) {
+        tickerRef.remove(cb)
+        ring.destroy()
+      }
+    }
+    tickerRef.add(cb)
   }
 
   private resolveRoom(pos: TilePos): RoomId | null {
