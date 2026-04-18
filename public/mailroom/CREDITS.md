@@ -15,5 +15,13 @@ redistributions of pixel-agents' `webview-ui/public/assets/characters/`.
 Grid, pathfinding model, and asset-manifest structure concept
 inspired by pablodelucca/pixel-agents (MIT).
 
+## Bubble overlay
+The DOM-based speech / thought / status chip pattern used by
+`src/components/mailroom/BubbleOverlay.tsx` is adapted from
+[harishkotra/agent-office](https://github.com/harishkotra/agent-office)
+(MIT License). Our implementation is a clean reimplementation in
+React + Tailwind matched to the Stone & Cognac palette; we do not
+copy any source code or assets directly.
+
 ## Runtime
 Rendering uses [PixiJS v8](https://github.com/pixijs/pixijs) (MIT).

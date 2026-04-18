@@ -11,6 +11,16 @@ import type { FilterProfile } from "../config/characters"
 import { Character } from "./Character"
 import { TileMap } from "./TileMap"
 import { findPath } from "./pathfinding"
+import { FRAME_W } from "./sprites"
+
+export type CharacterPosition = {
+  key: string
+  // Canvas pixel-space coordinates AFTER world.scale (zoom). The
+  // React BubbleOverlay uses these to position DOM bubbles over the
+  // canvas as percentages of the canvas size.
+  x: number
+  y: number
+}
 
 // Make every texture default to nearest-neighbour scaling. This is the
 // v8 equivalent of the old `PIXI.settings.SCALE_MODE = NEAREST` switch
@@ -131,10 +141,32 @@ export class MailroomEngine {
     c.setPath(path)
   }
 
-  setBubble(key: string, content: string | null) {
-    const c = this.characters.get(key)
-    if (!c) return
-    c.setBubble(content)
+  // Bubbles now live in React state via BubbleOverlay; we keep this
+  // method as a no-op so anything still calling it doesn't blow up.
+  setBubble(_key: string, _content: string | null) {
+    void _key
+    void _content
+  }
+
+  getCharacterPositions(): CharacterPosition[] {
+    const z = this.layout.zoom
+    const out: CharacterPosition[] = []
+    for (const [key, c] of this.characters) {
+      out.push({
+        key,
+        // Anchor on top-center of the sprite so bubbles sit just above the head.
+        x: (c.container.x + FRAME_W / 2) * z,
+        y: c.container.y * z,
+      })
+    }
+    return out
+  }
+
+  getCanvasSize() {
+    return {
+      w: this.layout.cols * this.layout.tileSize * this.layout.zoom,
+      h: this.layout.rows * this.layout.tileSize * this.layout.zoom,
+    }
   }
 
   resize() {

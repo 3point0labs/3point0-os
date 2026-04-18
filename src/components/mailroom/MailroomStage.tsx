@@ -1,7 +1,11 @@
 "use client"
 
-import { useEffect, useRef } from "react"
-import { MailroomEngine, type CharacterSpec } from "@/lib/mailroom/engine/Engine"
+import { useEffect, useMemo, useRef, useState } from "react"
+import {
+  MailroomEngine,
+  type CharacterPosition,
+  type CharacterSpec,
+} from "@/lib/mailroom/engine/Engine"
 import type {
   AgentRuntimeState,
   MailroomLayout,
@@ -11,6 +15,7 @@ import type {
 } from "@/lib/mailroom/config/types"
 import { TEAM, teamById } from "@/lib/mailroom/config/team"
 import { AGENTS } from "@/lib/mailroom/config/agents"
+import { BubbleOverlay, type BubbleSpec } from "./BubbleOverlay"
 
 type Props = {
   layout: MailroomLayout
@@ -20,6 +25,16 @@ type Props = {
   agentStates: AgentRuntimeState[]
   onEnterRoom: (id: RoomId) => void
   focusRoom: RoomId | "default"
+}
+
+function samePositions(a: CharacterPosition[], b: CharacterPosition[]) {
+  if (a.length !== b.length) return false
+  for (let i = 0; i < a.length; i++) {
+    if (a[i].key !== b[i].key) return false
+    if (Math.abs(a[i].x - b[i].x) > 0.5) return false
+    if (Math.abs(a[i].y - b[i].y) > 0.5) return false
+  }
+  return true
 }
 
 export function MailroomStage({
@@ -35,6 +50,16 @@ export function MailroomStage({
   const readyRef = useRef(false)
   const eventsRef = useRef({ onEnterRoom })
   eventsRef.current.onEnterRoom = onEnterRoom
+
+  const [positions, setPositions] = useState<CharacterPosition[]>([])
+
+  const canvasSize = useMemo(
+    () => ({
+      w: layout.cols * layout.tileSize * layout.zoom,
+      h: layout.rows * layout.tileSize * layout.zoom,
+    }),
+    [layout],
+  )
 
   useEffect(() => {
     const host = hostRef.current
@@ -80,9 +105,6 @@ export function MailroomStage({
         }
         if (engineRef.current !== engine) return
         await engine.addCharacter(spec)
-        if (!presentIds.includes(member.id)) {
-          engine.setBubble(`team:${member.id}`, "AWAY")
-        }
       }
 
       if (engineRef.current === engine) readyRef.current = true
@@ -96,21 +118,34 @@ export function MailroomStage({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [layout, player, includePrivate])
 
+  // requestAnimationFrame loop polls character positions from the
+  // engine and pushes them into React state for the BubbleOverlay.
+  // We diff against the last snapshot so React doesn't re-render
+  // 60×/sec when nobody is moving.
   useEffect(() => {
-    const engine = engineRef.current
-    if (!engine || !readyRef.current) return
-    for (const member of TEAM) {
-      const key = `team:${member.id}`
-      engine.setBubble(key, presentIds.includes(member.id) ? null : "AWAY")
+    let rafId = 0
+    let last: CharacterPosition[] = []
+    const tick = () => {
+      const engine = engineRef.current
+      if (engine && readyRef.current) {
+        const next = engine.getCharacterPositions()
+        if (!samePositions(last, next)) {
+          last = next
+          setPositions(next)
+        }
+      }
+      rafId = requestAnimationFrame(tick)
     }
-  }, [presentIds])
+    rafId = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(rafId)
+  }, [])
 
+  // Add agent NPC characters when their state shows up. Bubbles for
+  // them are now driven by React state below, not engine.setBubble.
   useEffect(() => {
     const engine = engineRef.current
     if (!engine) return
-
     let cancelled = false
-
     ;(async () => {
       while (!readyRef.current) {
         if (cancelled) return
@@ -119,19 +154,15 @@ export function MailroomStage({
       for (const descriptor of AGENTS) {
         if (descriptor.restrictedTo && !includePrivate) continue
         const state = agentStates.find((s) => s.id === descriptor.id)
-        const key = `agent:${descriptor.id}`
+        if (!state) continue
         const room = layout.rooms.find((r) => r.id === descriptor.homeRoom)
         if (!room) continue
         const roomCenter: TilePos = {
           x: room.x + Math.floor(room.w / 2),
           y: room.y + Math.floor(room.h / 2),
         }
-        const spawnPos =
-          layout.agentSpawns[descriptor.id] ?? roomCenter
-        if (!state) {
-          engine.setBubble(key, null)
-          continue
-        }
+        const spawnPos = layout.agentSpawns[descriptor.id] ?? roomCenter
+        const key = `agent:${descriptor.id}`
         const spec: CharacterSpec = {
           key,
           spriteIndex: descriptor.charSpriteIndex,
@@ -143,28 +174,48 @@ export function MailroomStage({
         await engine.addCharacter(spec).catch(() => {})
         if (state.status === "working") {
           engine.moveCharacterTo(key, roomCenter)
-          engine.setBubble(key, state.message ?? "WORKING…")
-        } else if (state.status === "waiting") {
-          engine.setBubble(key, state.message ?? "READY")
-        } else if (state.status === "error") {
-          engine.setBubble(key, "ERROR")
-        } else {
-          engine.setBubble(key, null)
         }
       }
     })()
-
     return () => {
       cancelled = true
     }
   }, [agentStates, includePrivate, layout])
 
+  // Derive React-state bubbles from presence + agent activity.
+  const bubbles = useMemo<BubbleSpec[]>(() => {
+    const out: BubbleSpec[] = []
+    // AWAY status chips for offline teammates.
+    for (const m of TEAM) {
+      if (presentIds.includes(m.id)) continue
+      out.push({ key: `team:${m.id}`, text: "AWAY", tone: "status" })
+    }
+    // Speech / status chips for active agents.
+    for (const d of AGENTS) {
+      if (d.restrictedTo && !includePrivate) continue
+      const state = agentStates.find((s) => s.id === d.id)
+      if (!state) continue
+      const key = `agent:${d.id}`
+      if (state.status === "working") {
+        out.push({ key, text: state.message ?? "WORKING…", tone: "speech" })
+      } else if (state.status === "waiting") {
+        out.push({ key, text: state.message ?? "READY", tone: "speech" })
+      } else if (state.status === "error") {
+        out.push({ key, text: "ERROR", tone: "status" })
+      }
+    }
+    return out
+  }, [presentIds, agentStates, includePrivate])
+
   return (
-    <div
-      ref={hostRef}
-      className="mx-auto flex w-full items-center justify-center bg-[var(--bg)]"
-      style={{ imageRendering: "pixelated" }}
-    />
+    <div className="relative mx-auto w-full bg-[var(--bg)]">
+      <div ref={hostRef} className="w-full" />
+      <BubbleOverlay
+        positions={positions}
+        bubbles={bubbles}
+        canvasSize={canvasSize}
+      />
+    </div>
   )
 }
 

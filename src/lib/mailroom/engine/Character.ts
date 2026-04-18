@@ -6,6 +6,8 @@ import {
   Text,
   Ticker,
 } from "pixi.js"
+// Speech / thought bubbles render as React DOM via BubbleOverlay, not
+// in-canvas. Character no longer owns a bubble surface.
 import type { TilePos } from "../config/types"
 import type { FilterProfile } from "../config/characters"
 import {
@@ -56,7 +58,6 @@ export class Character {
   private sprite: Sprite | null = null
   private shadow: Graphics
   private nameplate?: Text
-  private bubble?: Container
   private direction: Direction = "down"
   private walkFramesByDir: Record<Direction, ReturnType<typeof walkFrames>> | null = null
   private idleByDir: Record<Direction, ReturnType<typeof idleFrame>> | null = null
@@ -180,43 +181,6 @@ export class Character {
     } else {
       this.sprite.texture = this.idleByDir[this.direction]
     }
-  }
-
-  setBubble(content: string | null) {
-    if (this.bubble) {
-      this.container.removeChild(this.bubble)
-      this.bubble.destroy({ children: true })
-      this.bubble = undefined
-    }
-    if (!content) return
-    const bubble = new Container()
-    const label = new Text({
-      text: content,
-      style: {
-        fontFamily: "monospace",
-        fontSize: 8,
-        fill: 0xf2ece1,
-        letterSpacing: 1.2,
-        align: "center",
-      },
-    })
-    label.anchor.set(0.5, 0)
-    label.x = FRAME_W / 2
-    label.y = -14
-    const bg = new Graphics()
-      .roundRect(
-        label.x - label.width / 2 - 3,
-        label.y - 1,
-        label.width + 6,
-        label.height + 2,
-        1,
-      )
-      .fill({ color: 0x8b4513, alpha: 0.95 })
-      .stroke({ color: 0x2a1f17, width: 1, alpha: 0.35 })
-    bubble.addChild(bg)
-    bubble.addChild(label)
-    this.bubble = bubble
-    this.container.addChild(bubble)
   }
 
   destroy() {
