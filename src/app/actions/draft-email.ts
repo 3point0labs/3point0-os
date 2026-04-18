@@ -3,6 +3,8 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { assertPodcastAccess } from "@/lib/auth-server";
 import { getSponsors } from "@/lib/data";
+import { logAgentEvent } from "@/lib/mailroom/activity";
+import type { AgentId } from "@/lib/mailroom/config/types";
 import type { Sponsor } from "@/lib/types";
 
 const MODEL = "claude-sonnet-4-20250514";
@@ -79,6 +81,12 @@ export async function draftOutreachEmail(
   const enrichment = await getCompanyNewsSnippet(sponsor);
   const recommendation = recommendChannel(sponsor);
   const isPressbox = sponsor.podcast === "Pressbox Chronicles";
+  const agentId: AgentId = isPressbox ? "pressbox-outreach" : "sponsor-outreach";
+  await logAgentEvent(agentId, "draft-email:start", {
+    company: sponsor.company,
+    sponsorId: sponsor.id,
+    podcast: sponsor.podcast,
+  });
 
   const system = `You are a partnerships lead at 3point0 Labs writing concise, highly personalized B2B cold outreach emails for podcast sponsorship.
 
@@ -136,8 +144,18 @@ Requirements:
       .trim();
 
     if (!text) {
+      await logAgentEvent(agentId, "draft-email:error", {
+        company: sponsor.company,
+        reason: "empty response",
+      });
       return { ok: false, error: "The model returned an empty response." };
     }
+
+    await logAgentEvent(agentId, "draft-email:done", {
+      company: sponsor.company,
+      sponsorId: sponsor.id,
+      channel: recommendation.channel,
+    });
 
     return {
       ok: true,
@@ -148,6 +166,10 @@ Requirements:
   } catch (e) {
     const msg =
       e instanceof Error ? e.message : "Failed to generate email.";
+    await logAgentEvent(agentId, "draft-email:error", {
+      company: sponsor.company,
+      reason: msg,
+    });
     return { ok: false, error: msg };
   }
 }

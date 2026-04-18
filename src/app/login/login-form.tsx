@@ -53,20 +53,20 @@ export function LoginForm() {
   }
 
   return (
-    <div className="login-card w-full max-w-md rounded-xl p-8 shadow-[0_8px_40px_rgba(0,0,0,0.45)]">
+    <div className="login-card w-full max-w-md p-8">
       <div className="text-center">
         <p className="mt-6 font-mono text-[10px] uppercase tracking-[0.35em] text-[var(--color-text-secondary)]">
           Mission Control
         </p>
       </div>
 
-      <div className="my-6 h-px bg-[rgba(201,168,124,0.2)]" />
+      <div className="my-6 h-px bg-[rgba(139,69,19,0.2)]" />
 
       <button
         type="button"
         disabled={pending}
         onClick={() => void signInWithGoogle()}
-        className="flex min-h-[44px] w-full items-center justify-center gap-3 rounded-lg border border-[#c9a87c] bg-[rgba(201,168,124,0.1)] px-4 py-3 font-mono text-sm text-[#c9a87c] transition hover:bg-[rgba(201,168,124,0.2)] disabled:opacity-50"
+        className="flex min-h-[44px] w-full items-center justify-center gap-3 rounded-lg border border-[#8B4513] bg-[rgba(139,69,19,0.1)] px-4 py-3 font-mono text-sm text-[#8B4513] transition hover:bg-[rgba(139,69,19,0.2)] disabled:opacity-50"
       >
         <GoogleIcon />
         Continue with Google
@@ -88,7 +88,7 @@ export function LoginForm() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="Email"
-            className="min-h-[44px] w-full rounded-lg border border-[var(--color-border)] bg-[rgba(10,15,26,0.8)] px-3 py-2 text-sm text-[var(--color-accent-eggshell)] outline-none ring-0 placeholder:text-[var(--color-text-secondary)] focus:border-[rgba(201,168,124,0.45)]"
+            className="mono-raw min-h-[44px] w-full border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm text-[var(--fg)] outline-none ring-0 placeholder:text-[var(--fg-mute)] focus:border-[var(--accent)]"
           />
         </label>
         <label className="block">
@@ -100,14 +100,14 @@ export function LoginForm() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Password"
-            className="min-h-[44px] w-full rounded-lg border border-[var(--color-border)] bg-[rgba(10,15,26,0.8)] px-3 py-2 text-sm text-[var(--color-accent-eggshell)] outline-none placeholder:text-[var(--color-text-secondary)] focus:border-[rgba(201,168,124,0.45)]"
+            className="mono-raw min-h-[44px] w-full border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm text-[var(--fg)] outline-none placeholder:text-[var(--fg-mute)] focus:border-[var(--accent)]"
           />
         </label>
         {error && <p className="text-center text-sm text-red-400">{error}</p>}
         <button
           type="submit"
           disabled={pending}
-          className="min-h-[44px] w-full rounded-lg border border-[rgba(232,83,61,0.55)] bg-[#e8533d] px-4 py-3 font-mono text-sm font-medium uppercase tracking-wider text-white transition hover:brightness-110 disabled:opacity-50"
+          className="min-h-[44px] w-full border border-[var(--accent)] bg-[var(--accent)] px-4 py-3 font-mono text-sm font-medium text-[var(--bg-warm)] transition hover:bg-[var(--accent-hover)] hover:border-[var(--accent-hover)] disabled:opacity-50"
         >
           Sign in
         </button>

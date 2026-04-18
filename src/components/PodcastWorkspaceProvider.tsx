@@ -24,13 +24,13 @@ const KEY = "3point0.activePodcast";
 
 const PodcastWorkspaceContext = createContext<Ctx | null>(null);
 
-/** One54 = leather, Pressbox = coral */
+/** One54 = cognac, Pressbox = warmer cognac. Both earth tones in the stone palette. */
 function accentFor(podcast: ActivePodcast) {
-  return podcast === "Pressbox Chronicles" ? "#e8533d" : "#c9a87c";
+  return podcast === "Pressbox Chronicles" ? "#A0552A" : "#8B4513";
 }
 
 function accentRgbFor(podcast: ActivePodcast) {
-  return podcast === "Pressbox Chronicles" ? "232, 83, 61" : "201, 168, 124";
+  return podcast === "Pressbox Chronicles" ? "160, 85, 42" : "139, 69, 19";
 }
 
 function accessToAllowed(profile: ReturnType<typeof useAuth>["profile"], loading: boolean): ActivePodcast[] {

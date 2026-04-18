@@ -3,16 +3,20 @@ import { MobileBottomNav } from "./MobileBottomNav";
 import { NavLinks } from "./NavLinks";
 import { PodcastSwitcher } from "./PodcastSwitcher";
 import { SidebarUser } from "./SidebarUser";
+import { ViewModeToggle } from "./mailroom/ViewModeToggle";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-full min-w-0 text-[var(--color-accent-eggshell)]">
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-60 shrink-0 border-r border-[var(--color-border)] bg-[color-mix(in_srgb,var(--color-bg-secondary)_94%,transparent)] backdrop-blur-md lg:flex">
         <div className="flex h-full w-full flex-col px-4 py-6">
-          <Link href="/command" className="mb-8 flex flex-col items-center py-2">
+          <Link href="/command" className="mb-4 flex flex-col items-center py-2">
             <img src="/logo.png" alt="3point0 Labs" className="h-10 w-auto" />
             <p className="mt-0.5 text-sm text-[var(--color-text-secondary)]">Mission Control</p>
           </Link>
+          <div className="mb-4 flex justify-center">
+            <ViewModeToggle current="classic" />
+          </div>
           <PodcastSwitcher variant="sidebar" />
           <NavLinks />
           <div className="flex-1" />
