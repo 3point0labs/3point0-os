@@ -1,0 +1,191 @@
+import { Container, Graphics, Sprite, Text, Ticker } from "pixi.js"
+import type { TilePos } from "../config/types"
+import {
+  idleFrame,
+  loadCharacterSheet,
+  walkFrames,
+  type Direction,
+  FRAME_W,
+  FRAME_H,
+} from "./sprites"
+
+const WALK_SPEED = 48
+const WALK_FRAME_DURATION = 0.15
+
+export type CharacterOptions = {
+  spriteIndex: number
+  tint: number
+  tileSize: number
+  nameplate?: string
+  spawn: TilePos
+}
+
+export class Character {
+  readonly container = new Container()
+  private sprite: Sprite | null = null
+  private shadow: Graphics
+  private nameplate?: Text
+  private bubble?: Container
+  private direction: Direction = "down"
+  private walkFramesByDir: Record<Direction, ReturnType<typeof walkFrames>> | null = null
+  private idleByDir: Record<Direction, ReturnType<typeof idleFrame>> | null = null
+  private path: TilePos[] = []
+  private pathIndex = 0
+  private frameElapsed = 0
+  private walkFrameIndex = 0
+  private tileSize: number
+  private tileX: number
+  private tileY: number
+
+  constructor(private opts: CharacterOptions) {
+    this.tileSize = opts.tileSize
+    this.tileX = opts.spawn.x
+    this.tileY = opts.spawn.y
+
+    this.shadow = new Graphics()
+    this.shadow.ellipse(0, 0, 6, 2).fill({ color: 0x2a1f17, alpha: 0.25 })
+    this.shadow.y = FRAME_H - 2
+    this.container.addChild(this.shadow)
+
+    if (opts.nameplate) {
+      this.nameplate = new Text({
+        text: opts.nameplate,
+        style: {
+          fontFamily: "monospace",
+          fontSize: 8,
+          fill: 0x2a1f17,
+          letterSpacing: 1.4,
+        },
+      })
+      this.nameplate.anchor.set(0.5, 1)
+      this.nameplate.x = FRAME_W / 2
+      this.nameplate.y = -2
+      this.container.addChild(this.nameplate)
+    }
+
+    this.container.x = this.tileX * this.tileSize
+    this.container.y = this.tileY * this.tileSize
+  }
+
+  async load() {
+    const base = await loadCharacterSheet(this.opts.spriteIndex)
+    this.walkFramesByDir = {
+      down: walkFrames(base, "down"),
+      left: walkFrames(base, "left"),
+      right: walkFrames(base, "right"),
+      up: walkFrames(base, "up"),
+    }
+    this.idleByDir = {
+      down: idleFrame(base, "down"),
+      left: idleFrame(base, "left"),
+      right: idleFrame(base, "right"),
+      up: idleFrame(base, "up"),
+    }
+    this.sprite = new Sprite(this.idleByDir.down)
+    this.sprite.tint = this.opts.tint
+    this.container.addChildAt(this.sprite, 1)
+  }
+
+  get tile(): TilePos {
+    return { x: this.tileX, y: this.tileY }
+  }
+
+  setPath(path: TilePos[]) {
+    if (path.length <= 1) return
+    this.path = path
+    this.pathIndex = 0
+    this.walkFrameIndex = 0
+    this.frameElapsed = 0
+  }
+
+  get isMoving() {
+    return this.path.length > 0 && this.pathIndex < this.path.length - 1
+  }
+
+  tick(ticker: Ticker) {
+    if (!this.sprite || !this.walkFramesByDir || !this.idleByDir) return
+
+    if (this.path.length > 1 && this.pathIndex < this.path.length - 1) {
+      const next = this.path[this.pathIndex + 1]
+      const targetX = next.x * this.tileSize
+      const targetY = next.y * this.tileSize
+      const dx = targetX - this.container.x
+      const dy = targetY - this.container.y
+
+      if (Math.abs(dx) > Math.abs(dy)) {
+        this.direction = dx > 0 ? "right" : "left"
+      } else if (dy !== 0) {
+        this.direction = dy > 0 ? "down" : "up"
+      }
+
+      const step = WALK_SPEED * (ticker.deltaMS / 1000)
+      const remaining = Math.hypot(dx, dy)
+      if (remaining <= step) {
+        this.container.x = targetX
+        this.container.y = targetY
+        this.tileX = next.x
+        this.tileY = next.y
+        this.pathIndex += 1
+        if (this.pathIndex >= this.path.length - 1) {
+          this.path = []
+          this.sprite.texture = this.idleByDir[this.direction]
+          return
+        }
+      } else {
+        const ratio = step / remaining
+        this.container.x += dx * ratio
+        this.container.y += dy * ratio
+      }
+
+      this.frameElapsed += ticker.deltaMS / 1000
+      if (this.frameElapsed >= WALK_FRAME_DURATION) {
+        this.frameElapsed = 0
+        this.walkFrameIndex = (this.walkFrameIndex + 1) % 4
+        this.sprite.texture = this.walkFramesByDir[this.direction][this.walkFrameIndex]
+      }
+    } else {
+      this.sprite.texture = this.idleByDir[this.direction]
+    }
+  }
+
+  setBubble(content: string | null) {
+    if (this.bubble) {
+      this.container.removeChild(this.bubble)
+      this.bubble.destroy({ children: true })
+      this.bubble = undefined
+    }
+    if (!content) return
+    const bubble = new Container()
+    const label = new Text({
+      text: content,
+      style: {
+        fontFamily: "monospace",
+        fontSize: 8,
+        fill: 0xf2ece1,
+        letterSpacing: 1.2,
+        align: "center",
+      },
+    })
+    label.anchor.set(0.5, 0)
+    label.x = FRAME_W / 2
+    label.y = -14
+    const bg = new Graphics()
+      .roundRect(
+        label.x - label.width / 2 - 3,
+        label.y - 1,
+        label.width + 6,
+        label.height + 2,
+        1,
+      )
+      .fill({ color: 0x8b4513, alpha: 0.95 })
+      .stroke({ color: 0x2a1f17, width: 1, alpha: 0.35 })
+    bubble.addChild(bg)
+    bubble.addChild(label)
+    this.bubble = bubble
+    this.container.addChild(bubble)
+  }
+
+  destroy() {
+    this.container.destroy({ children: true })
+  }
+}

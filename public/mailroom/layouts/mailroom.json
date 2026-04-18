@@ -1,0 +1,26 @@
+{
+  "cols": 28,
+  "rows": 18,
+  "tileSize": 16,
+  "zoom": 2,
+  "desks": [
+    { "id": "marquel", "label": "MARQUEL", "x": 4,  "y": 8, "w": 3, "h": 2 },
+    { "id": "andrew",  "label": "ANDREW",  "x": 12, "y": 8, "w": 3, "h": 2 },
+    { "id": "randy",   "label": "RANDY",   "x": 20, "y": 8, "w": 3, "h": 2 }
+  ],
+  "rooms": [
+    { "id": "pipeline",   "label": "PIPELINE WALL",  "x": 1,  "y": 1,  "w": 12, "h": 5 },
+    { "id": "broadcast",  "label": "BROADCAST ROOM", "x": 15, "y": 1,  "w": 12, "h": 5 },
+    { "id": "mail",       "label": "MAIL SLOT",      "x": 1,  "y": 12, "w": 8,  "h": 5 },
+    { "id": "conference", "label": "CONFERENCE",     "x": 11, "y": 12, "w": 8,  "h": 5 },
+    { "id": "private",    "label": "PRIVATE OFFICE", "x": 20, "y": 12, "w": 7,  "h": 5, "adminOnly": true }
+  ],
+  "spawns": {
+    "marquel": { "x": 5,  "y": 10 },
+    "andrew":  { "x": 13, "y": 10 },
+    "randy":   { "x": 21, "y": 10 }
+  },
+  "agentSpawns": {
+    "sponsor-outreach": { "x": 2, "y": 10 }
+  }
+}
