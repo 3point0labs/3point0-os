@@ -1,5 +1,13 @@
-import { Container, Graphics, Sprite, Text, Ticker } from "pixi.js"
+import {
+  ColorMatrixFilter,
+  Container,
+  Graphics,
+  Sprite,
+  Text,
+  Ticker,
+} from "pixi.js"
 import type { TilePos } from "../config/types"
+import type { FilterProfile } from "../config/characters"
 import {
   idleFrame,
   loadCharacterSheet,
@@ -18,6 +26,29 @@ export type CharacterOptions = {
   tileSize: number
   nameplate?: string
   spawn: TilePos
+  filter?: FilterProfile
+}
+
+// Build a ColorMatrixFilter from a declarative FilterProfile. The three
+// knobs stack via `multiply: true` so their effect compounds instead of
+// overwriting each other.
+function buildColorFilter(profile: FilterProfile): ColorMatrixFilter {
+  const f = new ColorMatrixFilter()
+  f.reset()
+  let hasApplied = false
+  if (profile.hue !== undefined && profile.hue !== 0) {
+    f.hue(profile.hue, hasApplied)
+    hasApplied = true
+  }
+  if (profile.saturation !== undefined && profile.saturation !== 1) {
+    f.saturate(profile.saturation, hasApplied)
+    hasApplied = true
+  }
+  if (profile.brightness !== undefined && profile.brightness !== 1) {
+    f.brightness(profile.brightness, hasApplied)
+    hasApplied = true
+  }
+  return f
 }
 
 export class Character {
@@ -83,6 +114,9 @@ export class Character {
     }
     this.sprite = new Sprite(this.idleByDir.down)
     this.sprite.tint = this.opts.tint
+    if (this.opts.filter) {
+      this.sprite.filters = [buildColorFilter(this.opts.filter)]
+    }
     this.container.addChildAt(this.sprite, 1)
   }
 

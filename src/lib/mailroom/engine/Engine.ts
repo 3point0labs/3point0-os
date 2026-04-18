@@ -6,6 +6,7 @@ import {
   Ticker,
 } from "pixi.js"
 import type { MailroomLayout, RoomId, TilePos } from "../config/types"
+import type { FilterProfile } from "../config/characters"
 import { Character } from "./Character"
 import { TileMap } from "./TileMap"
 import { findPath } from "./pathfinding"
@@ -28,6 +29,7 @@ export type CharacterSpec = {
   nameplate?: string
   spawn: TilePos
   isPlayer?: boolean
+  filter?: FilterProfile
 }
 
 export class MailroomEngine {
@@ -102,6 +104,7 @@ export class MailroomEngine {
       tileSize,
       nameplate: spec.nameplate,
       spawn: spec.spawn,
+      filter: spec.filter,
     })
     await c.load()
     if (this.disposed || !this.app) {

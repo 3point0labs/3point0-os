@@ -20,6 +20,7 @@ function guessMemberId(name: string | null | undefined): TeamMemberId | null {
   if (lower.includes("marquel")) return "marquel"
   if (lower.includes("andrew")) return "andrew"
   if (lower.includes("randy")) return "randy"
+  if (lower.includes("kari")) return "kari"
   return null
 }
 

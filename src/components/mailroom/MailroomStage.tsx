@@ -76,6 +76,7 @@ export function MailroomStage({
           nameplate: member.displayName,
           spawn,
           isPlayer: player === member.id,
+          filter: member.filter,
         }
         if (engineRef.current !== engine) return
         await engine.addCharacter(spec)

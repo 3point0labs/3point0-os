@@ -1,4 +1,7 @@
 import type { UserRole } from "@/lib/types/profile"
+import type { FilterProfile, TeamMemberId } from "./characters"
+
+export type { TeamMemberId } from "./characters"
 
 export type TilePos = { x: number; y: number }
 export type TileRect = { x: number; y: number; w: number; h: number }
@@ -21,8 +24,6 @@ export type Desk = TileRect & {
   label: string
 }
 
-export type TeamMemberId = "marquel" | "andrew" | "randy"
-
 export type MailroomLayout = {
   cols: number
   rows: number
@@ -30,15 +31,17 @@ export type MailroomLayout = {
   zoom: number
   desks: Desk[]
   rooms: Room[]
-  spawns: Record<TeamMemberId, TilePos>
+  spawns: Partial<Record<TeamMemberId, TilePos>>
   agentSpawns: Record<string, TilePos>
 }
 
 export type TeamMember = {
   id: TeamMemberId
   displayName: string
+  role: string
   charSpriteIndex: 0 | 1 | 2 | 3 | 4 | 5
   tintHex: number
+  filter?: FilterProfile
 }
 
 export type AgentId = "sponsor-outreach" | "pressbox-outreach" | "followup" | "study"

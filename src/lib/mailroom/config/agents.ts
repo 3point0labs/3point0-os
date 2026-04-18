@@ -4,12 +4,14 @@ import type { AgentDescriptor, AgentId } from "./types"
 const COGNAC_DEEP = 0x8b4513
 const COGNAC_WARM = 0xa0552a
 
+// NPC agents use the two sprites no teammate claims (char_1 and
+// char_5) so the people never collide visually with the bots.
 export const AGENTS: AgentDescriptor[] = [
   {
     id: "sponsor-outreach",
     displayName: "Outreach Agent",
     homeRoom: "mail",
-    charSpriteIndex: 2,
+    charSpriteIndex: 1,
     tintHex: COGNAC_DEEP,
   },
   {
@@ -23,15 +25,15 @@ export const AGENTS: AgentDescriptor[] = [
     id: "followup",
     displayName: "Follow-up Agent",
     homeRoom: "mail",
-    charSpriteIndex: 0,
-    tintHex: COGNAC_DEEP,
+    charSpriteIndex: 1,
+    tintHex: COGNAC_WARM,
   },
   {
     id: "study",
     displayName: "Study Agent",
     homeRoom: "private",
-    charSpriteIndex: 2,
-    tintHex: COGNAC_WARM,
+    charSpriteIndex: 5,
+    tintHex: COGNAC_DEEP,
     restrictedTo: ["admin"],
   },
 ]
