@@ -1,8 +1,20 @@
-import { Application, Container, FederatedPointerEvent, Ticker } from "pixi.js"
+import {
+  Application,
+  Container,
+  FederatedPointerEvent,
+  TextureSource,
+  Ticker,
+} from "pixi.js"
 import type { MailroomLayout, RoomId, TilePos } from "../config/types"
 import { Character } from "./Character"
 import { TileMap } from "./TileMap"
 import { findPath } from "./pathfinding"
+
+// Make every texture default to nearest-neighbour scaling. This is the
+// v8 equivalent of the old `PIXI.settings.SCALE_MODE = NEAREST` switch
+// and guarantees any texture we forget to touch individually still
+// renders crisp. Safe to reassign on every engine boot.
+TextureSource.defaultOptions.scaleMode = "nearest"
 
 export type EngineEvents = {
   onTileClick?: (pos: TilePos) => void
@@ -26,6 +38,7 @@ export class MailroomEngine {
   private playerKey: string | null = null
   private lastRoomByCharacter = new Map<string, RoomId | null>()
   private mountedNode: HTMLElement | null = null
+  private disposed = false
   private tickHandler = (ticker: Ticker) => this.tick(ticker)
   private pointerHandler = (event: FederatedPointerEvent) =>
     this.handleClick(event)
@@ -37,19 +50,32 @@ export class MailroomEngine {
   ) {}
 
   async mount(container: HTMLElement) {
+    if (this.disposed) return
     const app = new Application()
+    const w = this.layout.cols * this.layout.tileSize * this.layout.zoom
+    const h = this.layout.rows * this.layout.tileSize * this.layout.zoom
     await app.init({
       background: 0xe8e0d4,
       antialias: false,
-      resolution: window.devicePixelRatio ?? 1,
-      autoDensity: true,
-      width: this.layout.cols * this.layout.tileSize * this.layout.zoom,
-      height: this.layout.rows * this.layout.tileSize * this.layout.zoom,
+      // Integer resolution only. We let `image-rendering: pixelated`
+      // handle the device-pixel upscale at the browser layer so we
+      // never get fractional snapping or bilinear filtering between
+      // the backing store and the screen.
+      resolution: 1,
+      autoDensity: false,
+      width: w,
+      height: h,
     })
+
+    if (this.disposed) {
+      app.destroy(true, { children: true, texture: false })
+      return
+    }
+
     const canvas = app.canvas
+    canvas.classList.add("pixel-canvas")
     canvas.style.width = "100%"
     canvas.style.height = "auto"
-    canvas.style.imageRendering = "pixelated"
     container.appendChild(canvas)
 
     this.app = app
@@ -68,6 +94,7 @@ export class MailroomEngine {
   }
 
   async addCharacter(spec: CharacterSpec) {
+    if (this.disposed || !this.app) return
     const tileSize = this.layout.tileSize
     const c = new Character({
       spriteIndex: spec.spriteIndex,
@@ -77,6 +104,10 @@ export class MailroomEngine {
       spawn: spec.spawn,
     })
     await c.load()
+    if (this.disposed || !this.app) {
+      c.destroy()
+      return
+    }
     this.world.addChild(c.container)
     this.characters.set(spec.key, c)
     this.lastRoomByCharacter.set(spec.key, this.resolveRoom(spec.spawn))
@@ -112,11 +143,14 @@ export class MailroomEngine {
   }
 
   destroy() {
+    this.disposed = true
     if (!this.app) return
     this.app.ticker.remove(this.tickHandler)
     this.app.stage.off("pointertap", this.pointerHandler)
     for (const c of this.characters.values()) c.destroy()
     this.characters.clear()
+    // `destroy(true, ...)` also removes the <canvas> from its parent
+    // node, so we don't need to touch the host DOM manually.
     this.app.destroy(true, { children: true, texture: false })
     this.app = null
     this.mountedNode = null

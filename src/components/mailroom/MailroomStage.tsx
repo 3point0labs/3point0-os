@@ -39,7 +39,16 @@ export function MailroomStage({
   useEffect(() => {
     const host = hostRef.current
     if (!host) return
-    let cancelled = false
+
+    // Guard against React 18 StrictMode's double-invoke of effects.
+    // If an engine instance from a prior pass of this effect is still
+    // attached, tear it down before we spin up a new one so we never
+    // end up with two canvases fighting over the same host.
+    if (engineRef.current) {
+      engineRef.current.destroy()
+      engineRef.current = null
+    }
+    while (host.firstChild) host.removeChild(host.firstChild)
 
     const engine = new MailroomEngine(
       layout,
@@ -53,6 +62,9 @@ export function MailroomStage({
 
     ;(async () => {
       await engine.mount(host)
+      // If cleanup already ran (StrictMode unmount between mount() awaits),
+      // the engine is disposed and every call below becomes a no-op.
+      if (engineRef.current !== engine) return
 
       for (const member of TEAM) {
         const spawn = layout.spawns[member.id]
@@ -65,22 +77,22 @@ export function MailroomStage({
           spawn,
           isPlayer: player === member.id,
         }
-        if (cancelled) return
+        if (engineRef.current !== engine) return
         await engine.addCharacter(spec)
         if (!presentIds.includes(member.id)) {
           engine.setBubble(`team:${member.id}`, "AWAY")
         }
       }
 
-      if (!cancelled) readyRef.current = true
+      if (engineRef.current === engine) readyRef.current = true
     })()
 
     return () => {
-      cancelled = true
       readyRef.current = false
       engine.destroy()
-      engineRef.current = null
+      if (engineRef.current === engine) engineRef.current = null
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [layout, player, includePrivate])
 
   useEffect(() => {

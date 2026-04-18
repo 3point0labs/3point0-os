@@ -287,3 +287,15 @@ input[type="button"] {
 a:not([role="button"]):not([class*="bg-"]):not([class*="btn"]) {
   color: inherit;
 }
+
+/* ------------------------------------------------------------
+   Pixel-art rendering (Mailroom canvas).
+   Browsers pick the first image-rendering value they understand,
+   so we list the modern one first and fall back progressively.
+   ------------------------------------------------------------ */
+.pixel-canvas {
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+  image-rendering: -webkit-optimize-contrast;
+}
