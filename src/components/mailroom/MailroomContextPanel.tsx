@@ -5,27 +5,41 @@ import { MyInboxWidget } from "@/components/MyInboxWidget"
 import { TodoList } from "@/components/TodoList"
 import type { AgentRuntimeState, RoomId } from "@/lib/mailroom/config/types"
 import { ROOM_LABELS } from "@/lib/mailroom/config/rooms"
+import { MailroomConferenceFeed } from "./MailroomConferenceFeed"
 
 type Props = {
   activeRoom: RoomId | "default"
   isAdmin: boolean
   agentStates: AgentRuntimeState[]
+  onLeaveRoom?: () => void
 }
 
 export function MailroomContextPanel({
   activeRoom,
   isAdmin,
   agentStates,
+  onLeaveRoom,
 }: Props) {
+  const inRoom = activeRoom !== "default"
+  const heading = inRoom
+    ? `CONTEXT PANEL · ${ROOM_LABELS[activeRoom].toUpperCase()}`
+    : "CONTEXT PANEL · MAILROOM"
   return (
     <div className="flex h-full w-full flex-col overflow-y-auto border-l border-[var(--border)] bg-[var(--bg-warm)]">
       <header className="sticky top-0 z-10 border-b border-[var(--border)] bg-[var(--bg-warm)] px-5 py-4">
-        <p className="font-mono text-[10px] text-[var(--fg-dim)]">
-          Context Panel
+        <p className="font-mono text-[10px] tracking-wider text-[var(--fg-dim)]">
+          {heading}
         </p>
-        <h2 className="mt-1 font-mono text-base text-[var(--fg)]">
-          {activeRoom === "default" ? "Mailroom" : ROOM_LABELS[activeRoom]}
-        </h2>
+        {inRoom && (
+          <button
+            type="button"
+            onClick={onLeaveRoom}
+            className="mt-1 inline-flex items-center font-mono text-[10px] text-[var(--accent)] hover:text-[var(--accent-hover)]"
+            aria-label="Back to Mailroom"
+          >
+            ← back to mailroom
+          </button>
+        )}
       </header>
       <div className="flex-1 px-5 py-5">
         <RoomView room={activeRoom} isAdmin={isAdmin} agentStates={agentStates} />
@@ -180,17 +194,9 @@ function MailView({ agentStates }: { agentStates: AgentRuntimeState[] }) {
 
 function ConferenceView() {
   return (
-    <section className="space-y-4">
-      <p className="text-sm text-[var(--fg-dim)]">
-        Team notes feed, asynchronous updates, and shared decisions. Full notes stream on the Command Center.
-      </p>
-      <Link
-        href="/command"
-        className="inline-flex min-h-[44px] items-center border border-[var(--accent)] bg-[var(--accent)] px-4 py-2 font-mono text-[11px] text-[var(--bg-warm)] hover:bg-[var(--accent-hover)]"
-      >
-        Open Command Center →
-      </Link>
-    </section>
+    <div className="space-y-4">
+      <MailroomConferenceFeed />
+    </div>
   )
 }
 

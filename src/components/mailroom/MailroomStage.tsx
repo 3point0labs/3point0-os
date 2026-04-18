@@ -1,6 +1,13 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState } from "react"
+import {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from "react"
 import {
   MailroomEngine,
   type CharacterPosition,
@@ -16,6 +23,10 @@ import type {
 import { TEAM, teamById } from "@/lib/mailroom/config/team"
 import { AGENTS } from "@/lib/mailroom/config/agents"
 import { BubbleOverlay, type BubbleSpec } from "./BubbleOverlay"
+
+export type MailroomStageHandle = {
+  teleportPlayerToSpawn: () => void
+}
 
 type Props = {
   layout: MailroomLayout
@@ -37,14 +48,10 @@ function samePositions(a: CharacterPosition[], b: CharacterPosition[]) {
   return true
 }
 
-export function MailroomStage({
-  layout,
-  player,
-  includePrivate,
-  presentIds,
-  agentStates,
-  onEnterRoom,
-}: Props) {
+export const MailroomStage = forwardRef<MailroomStageHandle, Props>(function MailroomStage(
+  { layout, player, includePrivate, presentIds, agentStates, onEnterRoom },
+  ref,
+) {
   const hostRef = useRef<HTMLDivElement | null>(null)
   const engineRef = useRef<MailroomEngine | null>(null)
   const readyRef = useRef(false)
@@ -207,6 +214,20 @@ export function MailroomStage({
     return out
   }, [presentIds, agentStates, includePrivate])
 
+  useImperativeHandle(
+    ref,
+    () => ({
+      teleportPlayerToSpawn: () => {
+        const engine = engineRef.current
+        if (!engine || !player) return
+        const spawn = layout.spawns[player]
+        if (!spawn) return
+        engine.teleportCharacter(`team:${player}`, spawn)
+      },
+    }),
+    [player, layout],
+  )
+
   return (
     <div className="relative mx-auto w-full bg-[var(--bg)]">
       <div ref={hostRef} className="w-full" />
@@ -217,7 +238,7 @@ export function MailroomStage({
       />
     </div>
   )
-}
+})
 
 // Re-export the helper so dependents don't import engine internals directly
 export const teamLookup = teamById

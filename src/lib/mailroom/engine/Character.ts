@@ -125,6 +125,20 @@ export class Character {
     return { x: this.tileX, y: this.tileY }
   }
 
+  teleportTo(target: TilePos) {
+    this.path = []
+    this.pathIndex = 0
+    this.walkFrameIndex = 0
+    this.frameElapsed = 0
+    this.tileX = target.x
+    this.tileY = target.y
+    this.container.x = target.x * this.tileSize
+    this.container.y = target.y * this.tileSize
+    if (this.sprite && this.idleByDir) {
+      this.sprite.texture = this.idleByDir[this.direction]
+    }
+  }
+
   setPath(path: TilePos[]) {
     if (path.length <= 1) return
     this.path = path

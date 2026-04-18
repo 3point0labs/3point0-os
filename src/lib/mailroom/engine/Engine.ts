@@ -141,6 +141,19 @@ export class MailroomEngine {
     c.setPath(path)
   }
 
+  teleportCharacter(key: string, target: TilePos) {
+    const c = this.characters.get(key)
+    if (!c) return
+    c.teleportTo(target)
+    // Reset room-tracking so we don't immediately re-fire onEnterRoom
+    // for the room we just left.
+    this.lastRoomByCharacter.set(key, this.resolveRoom(target))
+  }
+
+  get player(): string | null {
+    return this.playerKey
+  }
+
   // Bubbles now live in React state via BubbleOverlay; we keep this
   // method as a no-op so anything still calling it doesn't blow up.
   setBubble(_key: string, _content: string | null) {

@@ -1,9 +1,9 @@
 "use client"
 
 import Link from "next/link"
-import { useEffect, useMemo, useReducer, useState } from "react"
+import { useEffect, useMemo, useReducer, useRef, useState } from "react"
 import type { MailroomLayout, RoomId, TeamMemberId, AgentRuntimeState } from "@/lib/mailroom/config/types"
-import { MailroomStage } from "./MailroomStage"
+import { MailroomStage, type MailroomStageHandle } from "./MailroomStage"
 import { MailroomContextPanel } from "./MailroomContextPanel"
 import { PresenceAvatars } from "./PresenceAvatars"
 import { ViewModeToggle } from "./ViewModeToggle"
@@ -60,6 +60,7 @@ export function MailroomClient({ layout, initialAgentStates }: Props) {
   const [agentStates, setAgentStates] = useState<AgentRuntimeState[]>(
     initialAgentStates,
   )
+  const stageRef = useRef<MailroomStageHandle | null>(null)
 
   const memberId = useMemo(
     () => memberIdForProfileName(profile?.name ?? user?.email ?? null),
@@ -103,6 +104,11 @@ export function MailroomClient({ layout, initialAgentStates }: Props) {
     dispatch({ type: "enterRoom", room: id })
   }
 
+  const handleLeaveRoom = () => {
+    dispatch({ type: "reset" })
+    stageRef.current?.teleportPlayerToSpawn()
+  }
+
   const handleAvatarSelect = (id: TeamMemberId) => {
     const desk = layout.desks.find((d) => d.id === id)
     if (!desk) return
@@ -142,6 +148,7 @@ export function MailroomClient({ layout, initialAgentStates }: Props) {
         <section className="relative flex min-h-0 flex-col items-stretch bg-[var(--bg)]">
           <div className="flex-1 overflow-hidden p-4">
             <MailroomStage
+              ref={stageRef}
               layout={layout}
               player={memberId}
               includePrivate={Boolean(isAdmin)}
@@ -169,6 +176,7 @@ export function MailroomClient({ layout, initialAgentStates }: Props) {
             activeRoom={state.activeRoom}
             isAdmin={Boolean(isAdmin)}
             agentStates={agentStates}
+            onLeaveRoom={handleLeaveRoom}
           />
         </section>
       </div>
