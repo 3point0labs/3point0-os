@@ -22,7 +22,7 @@ import type {
 } from "@/lib/mailroom/config/types"
 import { TEAM, teamById } from "@/lib/mailroom/config/team"
 import { AGENTS } from "@/lib/mailroom/config/agents"
-import { BubbleOverlay, type BubbleSpec } from "./BubbleOverlay"
+import { BubbleOverlay, type BubbleSpec, type StatusDot } from "./BubbleOverlay"
 
 export type MailroomStageHandle = {
   teleportPlayerToSpawn: () => void
@@ -189,15 +189,11 @@ export const MailroomStage = forwardRef<MailroomStageHandle, Props>(function Mai
     }
   }, [agentStates, includePrivate, layout])
 
-  // Derive React-state bubbles from presence + agent activity.
+  // Derive React-state bubbles from agent activity. Teammate active/away
+  // status renders as a small dot via statusDots below — cleaner than a
+  // text chip and matches the top-bar roster's visual language.
   const bubbles = useMemo<BubbleSpec[]>(() => {
     const out: BubbleSpec[] = []
-    // AWAY status chips for offline teammates.
-    for (const m of TEAM) {
-      if (presentIds.includes(m.id)) continue
-      out.push({ key: `team:${m.id}`, text: "AWAY", tone: "status" })
-    }
-    // Speech / status chips for active agents.
     for (const d of AGENTS) {
       if (d.restrictedTo && !includePrivate) continue
       const state = agentStates.find((s) => s.id === d.id)
@@ -212,7 +208,19 @@ export const MailroomStage = forwardRef<MailroomStageHandle, Props>(function Mai
       }
     }
     return out
-  }, [presentIds, agentStates, includePrivate])
+  }, [agentStates, includePrivate])
+
+  // Cognac dot for active teammates, taupe for away. Only emit dots
+  // for teammates who actually have a spawn in this layout (i.e. are
+  // rendered on screen).
+  const statusDots = useMemo<StatusDot[]>(
+    () =>
+      TEAM.filter((m) => Boolean(layout.spawns[m.id])).map((m) => ({
+        key: `team:${m.id}`,
+        active: presentIds.includes(m.id),
+      })),
+    [presentIds, layout.spawns],
+  )
 
   useImperativeHandle(
     ref,
@@ -234,6 +242,7 @@ export const MailroomStage = forwardRef<MailroomStageHandle, Props>(function Mai
       <BubbleOverlay
         positions={positions}
         bubbles={bubbles}
+        statusDots={statusDots}
         canvasSize={canvasSize}
       />
     </div>

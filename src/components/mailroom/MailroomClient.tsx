@@ -8,7 +8,7 @@ import { MailroomContextPanel } from "./MailroomContextPanel"
 import { PresenceAvatars } from "./PresenceAvatars"
 import { ViewModeToggle } from "./ViewModeToggle"
 import { useAuth } from "@/hooks/useAuth"
-import { usePresence, type PresenceRow } from "./usePresence"
+import { usePresence, isActivePresence, type PresenceRow } from "./usePresence"
 import { TEAM } from "@/lib/mailroom/config/team"
 
 type Props = {
@@ -46,10 +46,12 @@ function memberIdForProfileName(name: string | null | undefined): TeamMemberId |
   return null
 }
 
-function resolvePresentIds(rows: PresenceRow[]): TeamMemberId[] {
+function resolvePresentIds(rows: PresenceRow[], now: number): TeamMemberId[] {
   const ids = new Set<TeamMemberId>()
   for (const row of rows) {
-    if (row.member_id) ids.add(row.member_id)
+    if (!row.member_id) continue
+    if (!isActivePresence(row, now)) continue
+    ids.add(row.member_id)
   }
   return Array.from(ids)
 }
@@ -67,12 +69,19 @@ export function MailroomClient({ layout, initialAgentStates }: Props) {
     [profile?.name, user?.email],
   )
 
-  const { rows } = usePresence({
+  const { rows, tick } = usePresence({
     userId: user?.id ?? null,
     name: profile?.name ?? user?.email ?? null,
     memberId,
   })
-  const presentIds = useMemo(() => resolvePresentIds(rows), [rows])
+  // tick is a freshness clock from usePresence (15s). We include it so
+  // a row that ages past ACTIVE_WINDOW_MS without a sync event still
+  // flips to away on the next tick.
+  const presentIds = useMemo(
+    () => resolvePresentIds(rows, Date.now()),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [rows, tick],
+  )
 
   useEffect(() => {
     let alive = true

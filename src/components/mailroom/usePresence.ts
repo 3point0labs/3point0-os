@@ -13,6 +13,20 @@ export type PresenceRow = {
 }
 
 const CHANNEL = "presence:mailroom"
+// How often we re-publish our own presence row. Must be <= ACTIVE_WINDOW
+// or we'll mark ourselves away between heartbeats.
+const HEARTBEAT_MS = 30_000
+// How often the local clock ticks so freshness checks re-evaluate even
+// if no presence sync event fires (e.g. nobody else joined or left).
+const TICK_MS = 15_000
+// Anyone whose last online_at is older than this window is "away".
+export const ACTIVE_WINDOW_MS = 60_000
+
+export function isActivePresence(row: { online_at: string }, now = Date.now()) {
+  const t = new Date(row.online_at).getTime()
+  if (Number.isNaN(t)) return false
+  return now - t < ACTIVE_WINDOW_MS
+}
 
 function guessMemberId(name: string | null | undefined): TeamMemberId | null {
   if (!name) return null
@@ -33,6 +47,9 @@ type Opts = {
 export function usePresence({ userId, name, memberId }: Opts) {
   const [rows, setRows] = useState<PresenceRow[]>([])
   const [joined, setJoined] = useState(false)
+  // tick is bumped every TICK_MS so consumers re-evaluate their
+  // ACTIVE_WINDOW_MS freshness checks even when no presence sync fires.
+  const [tick, setTick] = useState(0)
 
   useEffect(() => {
     if (!userId) {
@@ -49,6 +66,16 @@ export function usePresence({ userId, name, memberId }: Opts) {
       config: { presence: { key: userId } },
     })
 
+    let heartbeatId: ReturnType<typeof setInterval> | null = null
+
+    const trackNow = () =>
+      channel.track({
+        user_id: userId,
+        name,
+        member_id: memberId ?? guessMemberId(name),
+        online_at: new Date().toISOString(),
+      })
+
     channel
       .on("presence", { event: "sync" }, () => {
         const state = channel.presenceState() as Record<string, PresenceRow[]>
@@ -62,20 +89,24 @@ export function usePresence({ userId, name, memberId }: Opts) {
       })
       .subscribe(async (status) => {
         if (status !== "SUBSCRIBED") return
-        await channel.track({
-          user_id: userId,
-          name,
-          member_id: memberId ?? guessMemberId(name),
-          online_at: new Date().toISOString(),
-        })
+        await trackNow()
         setJoined(true)
+        heartbeatId = setInterval(() => {
+          void trackNow()
+        }, HEARTBEAT_MS)
       })
 
     return () => {
       setJoined(false)
+      if (heartbeatId) clearInterval(heartbeatId)
       supabase.removeChannel(channel)
     }
   }, [userId, name, memberId])
 
-  return { rows, joined }
+  useEffect(() => {
+    const id = setInterval(() => setTick((t) => t + 1), TICK_MS)
+    return () => clearInterval(id)
+  }, [])
+
+  return { rows, joined, tick }
 }

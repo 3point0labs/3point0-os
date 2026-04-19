@@ -20,13 +20,24 @@ export type BubbleSpec = {
   tone?: BubbleTone
 }
 
+export type StatusDot = {
+  key: string
+  active: boolean
+}
+
 type Props = {
   positions: CharacterPosition[]
   bubbles: BubbleSpec[]
+  statusDots?: StatusDot[]
   canvasSize: { w: number; h: number }
 }
 
-export function BubbleOverlay({ positions, bubbles, canvasSize }: Props) {
+export function BubbleOverlay({
+  positions,
+  bubbles,
+  statusDots = [],
+  canvasSize,
+}: Props) {
   if (canvasSize.w <= 0 || canvasSize.h <= 0) return null
   const positionByKey = new Map(positions.map((p) => [p.key, p]))
   return (
@@ -34,6 +45,28 @@ export function BubbleOverlay({ positions, bubbles, canvasSize }: Props) {
       className="pointer-events-none absolute inset-0 overflow-hidden"
       aria-hidden
     >
+      {statusDots.map((d) => {
+        const pos = positionByKey.get(d.key)
+        if (!pos) return null
+        const left = `${(pos.x / canvasSize.w) * 100}%`
+        const top = `${(pos.y / canvasSize.h) * 100}%`
+        return (
+          <div
+            key={`dot:${d.key}`}
+            className="absolute -translate-x-1/2 -translate-y-[calc(100%+2px)]"
+            style={{ left, top }}
+          >
+            <span
+              className="block h-1.5 w-1.5 rounded-full ring-1 ring-[var(--bg)]"
+              style={{
+                backgroundColor: d.active
+                  ? "var(--accent)"
+                  : "var(--fg-mute)",
+              }}
+            />
+          </div>
+        )
+      })}
       {bubbles.map((b) => {
         const pos = positionByKey.get(b.key)
         if (!pos) return null
@@ -42,7 +75,7 @@ export function BubbleOverlay({ positions, bubbles, canvasSize }: Props) {
         return (
           <div
             key={b.key}
-            className="absolute -translate-x-1/2 -translate-y-[calc(100%+6px)]"
+            className="absolute -translate-x-1/2 -translate-y-[calc(100%+10px)]"
             style={{ left, top }}
           >
             <BubbleChip text={b.text} tone={b.tone ?? "speech"} />
