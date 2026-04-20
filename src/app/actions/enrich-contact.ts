@@ -19,9 +19,9 @@ import {
 export type CreditsResult =
   | {
       ok: true;
-      creditsRemaining: number | null;
-      creditsTotal: number;
-      planName: string;
+      personSearchRemaining: number | null;
+      personLookupRemaining: number | null;
+      planTier: string;
       lastChecked: string;
     }
   | { ok: false; error: string };
@@ -46,7 +46,7 @@ export type BulkEnrichOk = {
   skipped: number;
   failed: number;
   creditsUsedTotal: number;
-  creditsRemainingAfter: number | null;
+  personLookupRemainingAfter: number | null;
   stoppedEarly: boolean;
   reason?: string;
 };
@@ -70,38 +70,17 @@ function getServiceClient() {
 // ============================================================================
 
 export async function getRocketReachCredits(): Promise<CreditsResult> {
-  const supabase = getServiceClient();
-  const { data: cached } = await supabase
-    .from("rocketreach_balance")
-    .select("credits_remaining, credits_total, plan_name, last_checked_at")
-    .eq("id", 1)
-    .maybeSingle();
-
-  const staleThreshold = 60 * 60 * 1000; // 1 hour
-  const lastChecked = cached?.last_checked_at
-    ? new Date(cached.last_checked_at).getTime()
-    : 0;
-  const isStale = Date.now() - lastChecked > staleThreshold;
-
-  if (isStale || cached?.credits_remaining === null) {
-    const fresh = await checkAccount();
-    if (fresh.ok) {
-      return {
-        ok: true,
-        creditsRemaining: fresh.creditsRemaining,
-        creditsTotal: cached?.credits_total ?? 300,
-        planName: cached?.plan_name ?? "pro",
-        lastChecked: new Date().toISOString(),
-      };
-    }
+  const fresh = await checkAccount();
+  if (!fresh.ok) {
+    return { ok: false, error: fresh.error };
   }
 
   return {
     ok: true,
-    creditsRemaining: cached?.credits_remaining ?? null,
-    creditsTotal: cached?.credits_total ?? 300,
-    planName: cached?.plan_name ?? "pro",
-    lastChecked: cached?.last_checked_at ?? new Date().toISOString(),
+    personSearchRemaining: fresh.personSearchRemaining,
+    personLookupRemaining: fresh.personLookupRemaining,
+    planTier: fresh.planTier,
+    lastChecked: new Date().toISOString(),
   };
 }
 
@@ -263,7 +242,7 @@ export async function enrichSponsor(sponsorId: string): Promise<EnrichResult> {
 }
 
 // ============================================================================
-// Bulk enrich Tier S + A
+// Bulk enrich sponsors
 // ============================================================================
 
 export async function bulkEnrichPrioritySponsors(params: {
@@ -278,8 +257,8 @@ export async function bulkEnrichPrioritySponsors(params: {
   }
 
   if (
-    credits.creditsRemaining !== null &&
-    credits.creditsRemaining < params.minCreditsRemaining
+    credits.personLookupRemaining !== null &&
+    credits.personLookupRemaining < params.minCreditsRemaining
   ) {
     return {
       ok: true,
@@ -287,9 +266,9 @@ export async function bulkEnrichPrioritySponsors(params: {
       skipped: 0,
       failed: 0,
       creditsUsedTotal: 0,
-      creditsRemainingAfter: credits.creditsRemaining,
+      personLookupRemainingAfter: credits.personLookupRemaining,
       stoppedEarly: true,
-      reason: `Only ${credits.creditsRemaining} credits left, below safety threshold of ${params.minCreditsRemaining}`,
+      reason: `Only ${credits.personLookupRemaining} lookups left, below safety threshold of ${params.minCreditsRemaining}`,
     };
   }
 
@@ -310,7 +289,7 @@ export async function bulkEnrichPrioritySponsors(params: {
       skipped: 0,
       failed: 0,
       creditsUsedTotal: 0,
-      creditsRemainingAfter: credits.creditsRemaining,
+      personLookupRemainingAfter: credits.personLookupRemaining,
       stoppedEarly: false,
       reason: "No unenriched priority sponsors to process",
     };
@@ -324,17 +303,6 @@ export async function bulkEnrichPrioritySponsors(params: {
   let reason: string | undefined;
 
   for (const sponsor of sponsors) {
-    const creditsNow = await getRocketReachCredits();
-    if (
-      creditsNow.ok &&
-      creditsNow.creditsRemaining !== null &&
-      creditsNow.creditsRemaining < params.minCreditsRemaining
-    ) {
-      stoppedEarly = true;
-      reason = `Hit safety threshold during run: ${creditsNow.creditsRemaining} credits remaining`;
-      break;
-    }
-
     const result = await enrichSponsor(sponsor.id);
     creditsUsedTotal += result.creditsUsed;
 
@@ -357,7 +325,9 @@ export async function bulkEnrichPrioritySponsors(params: {
     skipped,
     failed,
     creditsUsedTotal,
-    creditsRemainingAfter: finalCredits.ok ? finalCredits.creditsRemaining : null,
+    personLookupRemainingAfter: finalCredits.ok
+      ? finalCredits.personLookupRemaining
+      : null,
     stoppedEarly,
     reason,
   };

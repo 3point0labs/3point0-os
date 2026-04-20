@@ -3,7 +3,6 @@
 // ----------------------------------------------------------------------------
 // Thin wrapper over RocketReach v2. Designed to fail gracefully — if the API
 // returns unexpected shapes or errors, we log + return null instead of throwing.
-// That way the outreach flow never crashes on bad enrichment data.
 // ============================================================================
 
 import { createServerClient } from "@supabase/ssr";
@@ -12,19 +11,34 @@ const API_BASE = "https://api.rocketreach.co/v2/api";
 const DEFAULT_TIMEOUT_MS = 15000;
 
 // ============================================================================
-// Types — based on RocketReach v2 documented responses, kept permissive because
-// their API occasionally adds fields or returns different shapes by plan tier.
+// Types — permissive because RocketReach response shape varies by plan tier
 // ============================================================================
+
+export type RocketReachCreditUsage = {
+  credit_type: string;
+  allocated: number | string;
+  used: number;
+  remaining: number | string;
+};
+
+export type RocketReachRateLimit = {
+  action: string;
+  duration: string;
+  limit: number | null;
+  used: number;
+  remaining: number | null;
+};
 
 export type RocketReachAccount = {
   id?: number;
+  first_name?: string;
+  last_name?: string;
   email?: string;
-  plan?: {
-    name?: string;
-  };
+  state?: string;
+  plan?: { name?: string };
+  credit_usage?: RocketReachCreditUsage[];
+  rate_limits?: RocketReachRateLimit[];
   lookup_credit_balance?: number;
-  daily_lookups_remaining?: number;
-  api_key?: string;
 };
 
 export type RocketReachPerson = {
@@ -59,7 +73,13 @@ export type RocketReachSearchResult = {
 // ============================================================================
 
 export type CheckAccountResult =
-  | { ok: true; account: RocketReachAccount; creditsRemaining: number | null }
+  | {
+      ok: true;
+      account: RocketReachAccount;
+      personSearchRemaining: number | null;
+      personLookupRemaining: number | null;
+      planTier: string;
+    }
   | { ok: false; error: string };
 
 export type SearchPersonResult =
@@ -75,7 +95,38 @@ type RrFetchResult<T> =
   | { ok: false; error: string; status?: number };
 
 // ============================================================================
-// Credit tracking — writes to Supabase so we have a running log + balance cache
+// Parse credit/rate limit arrays into the number we actually care about
+// ============================================================================
+
+function findMonthlyRateLimit(
+  rateLimits: RocketReachRateLimit[] | undefined,
+  action: string
+): number | null {
+  if (!rateLimits) return null;
+  const entry = rateLimits.find(
+    (r) => r.action === action && r.duration === "one_month"
+  );
+  if (!entry) return null;
+  return typeof entry.remaining === "number" ? entry.remaining : null;
+}
+
+function derivePlanTier(account: RocketReachAccount): string {
+  // RocketReach doesn't always return a plan.name — infer from search monthly limit
+  const searchLimit = account.rate_limits?.find(
+    (r) => r.action === "person_search" && r.duration === "one_month"
+  )?.limit;
+  if (typeof searchLimit === "number") {
+    if (searchLimit >= 15000) return "enterprise";
+    if (searchLimit >= 2500) return "ultimate";
+    if (searchLimit >= 800) return "plus";
+    if (searchLimit >= 300) return "pro";
+    return "trial";
+  }
+  return account.plan?.name ?? "unknown";
+}
+
+// ============================================================================
+// Supabase client + logging
 // ============================================================================
 
 function getServiceClient() {
@@ -103,22 +154,22 @@ async function logUsage(params: {
       error_message: params.errorMessage ?? null,
     });
   } catch {
-    // Best effort — don't block enrichment on logging failure
+    // Best effort
   }
 }
 
 async function updateBalanceCache(
-  remaining: number | undefined,
-  planName?: string
+  personLookupRemaining: number | null,
+  planName: string
 ): Promise<void> {
-  if (typeof remaining !== "number") return;
+  if (personLookupRemaining === null) return;
   try {
     const supabase = getServiceClient();
     await supabase
       .from("rocketreach_balance")
       .update({
-        credits_remaining: remaining,
-        plan_name: planName ?? "pro",
+        credits_remaining: personLookupRemaining,
+        plan_name: planName,
         last_checked_at: new Date().toISOString(),
       })
       .eq("id", 1);
@@ -189,11 +240,6 @@ async function rrFetch<T>(
 // Public API
 // ============================================================================
 
-/**
- * Check account status + remaining credits.
- * Cheap call — RocketReach does NOT charge a credit for account info.
- * Writes result to rocketreach_balance cache.
- */
 export async function checkAccount(): Promise<CheckAccountResult> {
   const result = await rrFetch<RocketReachAccount>("/account");
 
@@ -207,12 +253,17 @@ export async function checkAccount(): Promise<CheckAccountResult> {
     return { ok: false, error: result.error };
   }
 
-  const remaining =
-    typeof result.data.lookup_credit_balance === "number"
-      ? result.data.lookup_credit_balance
-      : null;
+  const personSearchRemaining = findMonthlyRateLimit(
+    result.data.rate_limits,
+    "person_search"
+  );
+  const personLookupRemaining = findMonthlyRateLimit(
+    result.data.rate_limits,
+    "person_lookup"
+  );
+  const planTier = derivePlanTier(result.data);
 
-  await updateBalanceCache(remaining ?? undefined, result.data.plan?.name);
+  await updateBalanceCache(personLookupRemaining, planTier);
   await logUsage({
     action: "account_check",
     creditsUsed: 0,
@@ -222,14 +273,12 @@ export async function checkAccount(): Promise<CheckAccountResult> {
   return {
     ok: true,
     account: result.data,
-    creditsRemaining: remaining,
+    personSearchRemaining,
+    personLookupRemaining,
+    planTier,
   };
 }
 
-/**
- * Search for a person by name + company. Returns the top-matching profile.
- * Costs 1 credit on most plans if a match is returned.
- */
 export async function searchPerson(params: {
   name?: string;
   company: string;
@@ -285,10 +334,6 @@ export async function searchPerson(params: {
   return { ok: true, person: profiles[0] ?? null };
 }
 
-/**
- * Look up a specific person's full profile (including emails) by their
- * RocketReach ID. Costs 1 credit.
- */
 export async function lookupPersonEmails(params: {
   rocketreachId: number;
   sponsorId?: string;
@@ -320,9 +365,6 @@ export async function lookupPersonEmails(params: {
   return { ok: true, person: result.data };
 }
 
-/**
- * Pick the best email from a RocketReach profile.
- */
 export function pickBestEmail(person: RocketReachPerson): {
   email: string | null;
   verified: boolean;
