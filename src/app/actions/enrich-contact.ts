@@ -12,61 +12,19 @@ import {
   type TitleTier,
 } from "@/lib/rocketreach";
 
-function getServiceClient() {
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { cookies: { getAll: () => [], setAll: () => {} } }
-  );
-}
-
 // ============================================================================
-// Public: Get RocketReach credit balance
-// Reads from our cache table first; refreshes from API only if stale (>1hr)
+// Types
 // ============================================================================
 
-export async function getRocketReachCredits(): Promise
-  | { ok: true; creditsRemaining: number | null; creditsTotal: number; planName: string; lastChecked: string }
-  | { ok: false; error: string }
-> {
-  const supabase = getServiceClient();
-  const { data: cached } = await supabase
-    .from("rocketreach_balance")
-    .select("credits_remaining, credits_total, plan_name, last_checked_at")
-    .eq("id", 1)
-    .maybeSingle();
-
-  const staleThreshold = 60 * 60 * 1000; // 1 hour
-  const lastChecked = cached?.last_checked_at ? new Date(cached.last_checked_at).getTime() : 0;
-  const isStale = Date.now() - lastChecked > staleThreshold;
-
-  if (isStale || cached?.credits_remaining === null) {
-    const fresh = await checkAccount();
-    if (fresh.ok) {
-      return {
-        ok: true,
-        creditsRemaining: fresh.creditsRemaining,
-        creditsTotal: cached?.credits_total ?? 300,
-        planName: cached?.plan_name ?? "pro",
-        lastChecked: new Date().toISOString(),
-      };
+export type CreditsResult =
+  | {
+      ok: true;
+      creditsRemaining: number | null;
+      creditsTotal: number;
+      planName: string;
+      lastChecked: string;
     }
-    // Fall through to cached value if fresh check fails
-  }
-
-  return {
-    ok: true,
-    creditsRemaining: cached?.credits_remaining ?? null,
-    creditsTotal: cached?.credits_total ?? 300,
-    planName: cached?.plan_name ?? "pro",
-    lastChecked: cached?.last_checked_at ?? new Date().toISOString(),
-  };
-}
-
-// ============================================================================
-// Public: Enrich a single sponsor via RocketReach
-// Full flow: search → lookup emails → classify title → update DB
-// ============================================================================
+  | { ok: false; error: string };
 
 export type EnrichResult =
   | {
@@ -82,10 +40,78 @@ export type EnrichResult =
     }
   | { ok: false; error: string; creditsUsed: number };
 
+export type BulkEnrichOk = {
+  ok: true;
+  enriched: number;
+  skipped: number;
+  failed: number;
+  creditsUsedTotal: number;
+  creditsRemainingAfter: number | null;
+  stoppedEarly: boolean;
+  reason?: string;
+};
+
+export type BulkEnrichResult = BulkEnrichOk | { ok: false; error: string };
+
+// ============================================================================
+// Helpers
+// ============================================================================
+
+function getServiceClient() {
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { cookies: { getAll: () => [], setAll: () => {} } }
+  );
+}
+
+// ============================================================================
+// Get RocketReach credit balance
+// ============================================================================
+
+export async function getRocketReachCredits(): Promise<CreditsResult> {
+  const supabase = getServiceClient();
+  const { data: cached } = await supabase
+    .from("rocketreach_balance")
+    .select("credits_remaining, credits_total, plan_name, last_checked_at")
+    .eq("id", 1)
+    .maybeSingle();
+
+  const staleThreshold = 60 * 60 * 1000; // 1 hour
+  const lastChecked = cached?.last_checked_at
+    ? new Date(cached.last_checked_at).getTime()
+    : 0;
+  const isStale = Date.now() - lastChecked > staleThreshold;
+
+  if (isStale || cached?.credits_remaining === null) {
+    const fresh = await checkAccount();
+    if (fresh.ok) {
+      return {
+        ok: true,
+        creditsRemaining: fresh.creditsRemaining,
+        creditsTotal: cached?.credits_total ?? 300,
+        planName: cached?.plan_name ?? "pro",
+        lastChecked: new Date().toISOString(),
+      };
+    }
+  }
+
+  return {
+    ok: true,
+    creditsRemaining: cached?.credits_remaining ?? null,
+    creditsTotal: cached?.credits_total ?? 300,
+    planName: cached?.plan_name ?? "pro",
+    lastChecked: cached?.last_checked_at ?? new Date().toISOString(),
+  };
+}
+
+// ============================================================================
+// Enrich a single sponsor
+// ============================================================================
+
 export async function enrichSponsor(sponsorId: string): Promise<EnrichResult> {
   const supabase = getServiceClient();
 
-  // 1. Load sponsor
   const { data: sponsor, error: fetchErr } = await supabase
     .from("sponsors")
     .select("id, company, contact_name, contact_title, email, rocketreach_id")
@@ -101,15 +127,17 @@ export async function enrichSponsor(sponsorId: string): Promise<EnrichResult> {
   }
 
   let creditsUsed = 0;
-
-  // 2. If we already have a rocketreach_id, skip search and go straight to lookup
   let rocketreachId: number | undefined;
-  let personFromSearch: { id?: number; name?: string; current_title?: string; linkedin_url?: string } | null = null;
+  let personFromSearch: {
+    id?: number;
+    name?: string;
+    current_title?: string;
+    linkedin_url?: string;
+  } | null = null;
 
   if (sponsor.rocketreach_id) {
     rocketreachId = parseInt(sponsor.rocketreach_id, 10);
   } else {
-    // Search for the person
     const search = await searchPerson({
       company: sponsor.company,
       name: sponsor.contact_name || undefined,
@@ -122,7 +150,6 @@ export async function enrichSponsor(sponsorId: string): Promise<EnrichResult> {
     }
 
     if (!search.person || !search.person.id) {
-      // Try again without title filter — maybe the person exists but isn't partnerships
       const broadSearch = await searchPerson({
         company: sponsor.company,
         name: sponsor.contact_name || undefined,
@@ -130,7 +157,6 @@ export async function enrichSponsor(sponsorId: string): Promise<EnrichResult> {
       });
 
       if (!broadSearch.ok || !broadSearch.person || !broadSearch.person.id) {
-        // Mark sponsor as "no match" so we don't keep retrying
         await supabase
           .from("sponsors")
           .update({
@@ -138,7 +164,11 @@ export async function enrichSponsor(sponsorId: string): Promise<EnrichResult> {
             email_source: "not_found",
           })
           .eq("id", sponsor.id);
-        return { ok: false, error: "No match found on RocketReach", creditsUsed: 1 };
+        return {
+          ok: false,
+          error: "No match found on RocketReach",
+          creditsUsed: 1,
+        };
       }
 
       personFromSearch = broadSearch.person;
@@ -155,26 +185,31 @@ export async function enrichSponsor(sponsorId: string): Promise<EnrichResult> {
     return { ok: false, error: "No RocketReach ID to lookup", creditsUsed };
   }
 
-  // 3. Lookup full profile with emails
   const lookup = await lookupPersonEmails({
     rocketreachId,
     sponsorId: sponsor.id,
   });
 
   if (!lookup.ok) {
-    return { ok: false, error: `Email lookup failed: ${lookup.error}`, creditsUsed };
+    return {
+      ok: false,
+      error: `Email lookup failed: ${lookup.error}`,
+      creditsUsed,
+    };
   }
 
   creditsUsed += 1;
 
   const person = lookup.person;
   const emailPick = pickBestEmail(person);
-  const title = person.current_title ?? personFromSearch?.current_title ?? "";
-  const name = person.name ?? personFromSearch?.name ?? sponsor.contact_name ?? "";
-  const linkedin = person.linkedin_url ?? personFromSearch?.linkedin_url ?? "";
+  const title =
+    person.current_title ?? personFromSearch?.current_title ?? "";
+  const name =
+    person.name ?? personFromSearch?.name ?? sponsor.contact_name ?? "";
+  const linkedin =
+    person.linkedin_url ?? personFromSearch?.linkedin_url ?? "";
   const titleTier = classifyTitle(title);
 
-  // 4. Update sponsor record
   const updates: Record<string, unknown> = {
     rocketreach_id: String(rocketreachId),
     rocketreach_looked_up_at: new Date().toISOString(),
@@ -186,7 +221,9 @@ export async function enrichSponsor(sponsorId: string): Promise<EnrichResult> {
     updates.email_verified = emailPick.verified;
     updates.email_verified_at = new Date().toISOString();
     updates.email_source = "rocketreach";
-    updates.email_validation_error = emailPick.verified ? null : emailPick.note;
+    updates.email_validation_error = emailPick.verified
+      ? null
+      : emailPick.note;
   } else {
     updates.email_source = "not_found";
     updates.email_validation_error = emailPick.note;
@@ -196,9 +233,17 @@ export async function enrichSponsor(sponsorId: string): Promise<EnrichResult> {
   if (title) updates.contact_title = title;
   if (linkedin) updates.linkedin_url = linkedin;
 
-  const { error: updateErr } = await supabase.from("sponsors").update(updates).eq("id", sponsor.id);
+  const { error: updateErr } = await supabase
+    .from("sponsors")
+    .update(updates)
+    .eq("id", sponsor.id);
+
   if (updateErr) {
-    return { ok: false, error: `DB update failed: ${updateErr.message}`, creditsUsed };
+    return {
+      ok: false,
+      error: `DB update failed: ${updateErr.message}`,
+      creditsUsed,
+    };
   }
 
   revalidatePath("/partnerships");
@@ -218,28 +263,15 @@ export async function enrichSponsor(sponsorId: string): Promise<EnrichResult> {
 }
 
 // ============================================================================
-// Public: Bulk enrich Tier S + Tier A sponsors
-// Safety: stops if credits drop below threshold
+// Bulk enrich Tier S + A
 // ============================================================================
 
-export type BulkEnrichResult = {
-  ok: true;
-  enriched: number;
-  skipped: number;
-  failed: number;
-  creditsUsedTotal: number;
-  creditsRemainingAfter: number | null;
-  stoppedEarly: boolean;
-  reason?: string;
-};
-
 export async function bulkEnrichPrioritySponsors(params: {
-  tiers: string[];                // e.g. ["S", "A"]
-  minCreditsRemaining: number;    // stop if credits drop below this
-}): Promise<BulkEnrichResult | { ok: false; error: string }> {
+  tiers: string[];
+  minCreditsRemaining: number;
+}): Promise<BulkEnrichResult> {
   const supabase = getServiceClient();
 
-  // 1. Check credits first — don't start if we're already below threshold
   const credits = await getRocketReachCredits();
   if (!credits.ok) {
     return { ok: false, error: "Failed to check credits" };
@@ -261,7 +293,6 @@ export async function bulkEnrichPrioritySponsors(params: {
     };
   }
 
-  // 2. Load unenriched Tier S + A sponsors
   const { data: sponsors, error } = await supabase
     .from("sponsors")
     .select("id, tier, email_source")
@@ -293,7 +324,6 @@ export async function bulkEnrichPrioritySponsors(params: {
   let reason: string | undefined;
 
   for (const sponsor of sponsors) {
-    // Re-check credits before each sponsor (each costs ~2)
     const creditsNow = await getRocketReachCredits();
     if (
       creditsNow.ok &&
@@ -310,15 +340,12 @@ export async function bulkEnrichPrioritySponsors(params: {
 
     if (result.ok) {
       enriched += 1;
+    } else if (result.error.includes("No match")) {
+      skipped += 1;
     } else {
-      if (result.error.includes("No match")) {
-        skipped += 1;
-      } else {
-        failed += 1;
-      }
+      failed += 1;
     }
 
-    // Small delay to be polite to RocketReach API
     await new Promise((r) => setTimeout(r, 300));
   }
 
