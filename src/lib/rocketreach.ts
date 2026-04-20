@@ -36,13 +36,13 @@ export type RocketReachPerson = {
   emails?: Array<{
     email: string;
     type?: string;
-    smtp_valid?: string;        // "valid" | "invalid" | "unknown" | "catch_all"
+    smtp_valid?: string;
     last_validation_check?: string;
   }>;
   recommended_email?: string;
   recommended_personal_email?: string;
   recommended_professional_email?: string;
-  status?: string;               // "complete" | "searching" | "failed"
+  status?: string;
 };
 
 export type RocketReachSearchResult = {
@@ -53,6 +53,26 @@ export type RocketReachSearchResult = {
     next?: number;
   };
 };
+
+// ============================================================================
+// Return type aliases (extracted for Turbopack compatibility)
+// ============================================================================
+
+export type CheckAccountResult =
+  | { ok: true; account: RocketReachAccount; creditsRemaining: number | null }
+  | { ok: false; error: string };
+
+export type SearchPersonResult =
+  | { ok: true; person: RocketReachPerson | null }
+  | { ok: false; error: string };
+
+export type LookupPersonResult =
+  | { ok: true; person: RocketReachPerson }
+  | { ok: false; error: string };
+
+type RrFetchResult<T> =
+  | { ok: true; data: T }
+  | { ok: false; error: string; status?: number };
 
 // ============================================================================
 // Credit tracking — writes to Supabase so we have a running log + balance cache
@@ -87,7 +107,10 @@ async function logUsage(params: {
   }
 }
 
-async function updateBalanceCache(remaining: number | undefined, planName?: string): Promise<void> {
+async function updateBalanceCache(
+  remaining: number | undefined,
+  planName?: string
+): Promise<void> {
   if (typeof remaining !== "number") return;
   try {
     const supabase = getServiceClient();
@@ -116,7 +139,7 @@ function getApiKey(): string | null {
 async function rrFetch<T>(
   path: string,
   init: RequestInit = {}
-): Promise<{ ok: true; data: T } | { ok: false; error: string; status?: number }> {
+): Promise<RrFetchResult<T>> {
   const apiKey = getApiKey();
   if (!apiKey) {
     return { ok: false, error: "ROCKETREACH_API_KEY is not configured." };
@@ -171,10 +194,7 @@ async function rrFetch<T>(
  * Cheap call — RocketReach does NOT charge a credit for account info.
  * Writes result to rocketreach_balance cache.
  */
-export async function checkAccount(): Promise
-  | { ok: true; account: RocketReachAccount; creditsRemaining: number | null }
-  | { ok: false; error: string }
-> {
+export async function checkAccount(): Promise<CheckAccountResult> {
   const result = await rrFetch<RocketReachAccount>("/account");
 
   if (!result.ok) {
@@ -209,20 +229,13 @@ export async function checkAccount(): Promise
 /**
  * Search for a person by name + company. Returns the top-matching profile.
  * Costs 1 credit on most plans if a match is returned.
- *
- * RocketReach allows filtering by title keywords to improve hit quality.
- * We pass target title keywords so the search prefers partnerships/marketing
- * roles over random employees.
  */
 export async function searchPerson(params: {
   name?: string;
   company: string;
   titleKeywords?: string[];
   sponsorId?: string;
-}): Promise
-  | { ok: true; person: RocketReachPerson | null }
-  | { ok: false; error: string }
-> {
+}): Promise<SearchPersonResult> {
   const body: Record<string, unknown> = {
     query: {
       current_employer: [params.company],
@@ -236,8 +249,7 @@ export async function searchPerson(params: {
   }
 
   if (params.titleKeywords && params.titleKeywords.length > 0) {
-    (body.query as Record<string, unknown>).current_title =
-      params.titleKeywords;
+    (body.query as Record<string, unknown>).current_title = params.titleKeywords;
   }
 
   const result = await rrFetch<RocketReachSearchResult>("/search", {
@@ -266,7 +278,6 @@ export async function searchPerson(params: {
     success: true,
   });
 
-  // Refresh credit balance after any paid call
   if (creditsUsed > 0) {
     void checkAccount();
   }
@@ -277,17 +288,11 @@ export async function searchPerson(params: {
 /**
  * Look up a specific person's full profile (including emails) by their
  * RocketReach ID. Costs 1 credit.
- *
- * Use this AFTER searchPerson has returned a profile — you pass the person.id
- * to this function to unlock their verified emails.
  */
 export async function lookupPersonEmails(params: {
   rocketreachId: number;
   sponsorId?: string;
-}): Promise
-  | { ok: true; person: RocketReachPerson }
-  | { ok: false; error: string }
-> {
+}): Promise<LookupPersonResult> {
   const result = await rrFetch<RocketReachPerson>(
     `/lookupProfile?id=${params.rocketreachId}`
   );
@@ -310,7 +315,6 @@ export async function lookupPersonEmails(params: {
     success: true,
   });
 
-  // Refresh credit balance
   void checkAccount();
 
   return { ok: true, person: result.data };
@@ -318,8 +322,6 @@ export async function lookupPersonEmails(params: {
 
 /**
  * Pick the best email from a RocketReach profile.
- * Prioritizes professional emails marked "valid", then personal valid emails,
- * then the recommended_email as a last resort.
  */
 export function pickBestEmail(person: RocketReachPerson): {
   email: string | null;
@@ -328,7 +330,6 @@ export function pickBestEmail(person: RocketReachPerson): {
 } {
   const emails = person.emails ?? [];
 
-  // First pass: professional + valid
   const professionalValid = emails.find(
     (e) =>
       (e.type === "professional" || !e.type) && e.smtp_valid === "valid"
@@ -341,7 +342,6 @@ export function pickBestEmail(person: RocketReachPerson): {
     };
   }
 
-  // Second pass: any valid
   const anyValid = emails.find((e) => e.smtp_valid === "valid");
   if (anyValid) {
     return {
@@ -351,7 +351,6 @@ export function pickBestEmail(person: RocketReachPerson): {
     };
   }
 
-  // Third pass: catch-all domain (likely to deliver but can't confirm)
   const catchAll = emails.find((e) => e.smtp_valid === "catch_all");
   if (catchAll) {
     return {
@@ -361,7 +360,6 @@ export function pickBestEmail(person: RocketReachPerson): {
     };
   }
 
-  // Fallback: use recommended_email if no validated options
   if (person.recommended_professional_email) {
     return {
       email: person.recommended_professional_email,
@@ -383,12 +381,14 @@ export function pickBestEmail(person: RocketReachPerson): {
 
 // ============================================================================
 // Title quality classifier
-// ----------------------------------------------------------------------------
-// Given a contact title, classify it into tiers so we can prioritize sending.
-// Used by the enrichment agent and surfaced as a badge in the UI.
 // ============================================================================
 
-export type TitleTier = "ideal" | "acceptable" | "fallback" | "avoid" | "unknown";
+export type TitleTier =
+  | "ideal"
+  | "acceptable"
+  | "fallback"
+  | "avoid"
+  | "unknown";
 
 const TITLE_PATTERNS: Array<{ tier: TitleTier; patterns: RegExp[] }> = [
   {
@@ -430,7 +430,9 @@ const TITLE_PATTERNS: Array<{ tier: TitleTier; patterns: RegExp[] }> = [
   },
 ];
 
-export function classifyTitle(title: string | null | undefined): TitleTier {
+export function classifyTitle(
+  title: string | null | undefined
+): TitleTier {
   if (!title || !title.trim()) return "unknown";
   const t = title.trim();
   for (const { tier, patterns } of TITLE_PATTERNS) {
@@ -441,7 +443,6 @@ export function classifyTitle(title: string | null | undefined): TitleTier {
 
 // ============================================================================
 // Target title keywords for RocketReach search
-// Passed as filters to reduce credit spend on bad matches
 // ============================================================================
 
 export const TARGET_TITLE_KEYWORDS = [
