@@ -11,9 +11,19 @@ import type {
 const ACTIVITY_PATH = path.join(process.cwd(), "data", "activity.json")
 const MAX_EVENTS = 200
 
+// Vercel serverless functions run on a read-only filesystem.
+// Detect it once; when true, we fall back to an in-memory store that
+// lives for the lifetime of a single serverless invocation. This keeps
+// the API shape identical so call sites don't care — logs just won't
+// persist across requests in production. We'll move to Supabase later.
+const IS_READONLY_FS = process.env.VERCEL === "1"
+
+let memoryStore: ActivityFile = { events: [] }
+
 type ActivityFile = { events: AgentEvent[] }
 
 async function readActivity(): Promise<ActivityFile> {
+  if (IS_READONLY_FS) return memoryStore
   try {
     const buf = await fs.readFile(ACTIVITY_PATH, "utf8")
     const parsed = JSON.parse(buf) as ActivityFile
@@ -25,6 +35,10 @@ async function readActivity(): Promise<ActivityFile> {
 }
 
 async function writeActivity(file: ActivityFile): Promise<void> {
+  if (IS_READONLY_FS) {
+    memoryStore = file
+    return
+  }
   await fs.mkdir(path.dirname(ACTIVITY_PATH), { recursive: true })
   await fs.writeFile(ACTIVITY_PATH, JSON.stringify(file, null, 2), "utf8")
 }
@@ -54,10 +68,6 @@ export async function readAgentEvents(limit = 50): Promise<AgentEvent[]> {
   return file.events.slice(-limit).reverse()
 }
 
-// Derive a per-agent runtime state from the last event we saw. An
-// agent is "working" when its last event was a :start, "waiting"
-// when it was a :done within the last 2 minutes, "error" on :error,
-// and otherwise "idle".
 export async function readAgentStates(): Promise<AgentRuntimeState[]> {
   const file = await readActivity()
   const latest = new Map<AgentId, AgentEvent>()

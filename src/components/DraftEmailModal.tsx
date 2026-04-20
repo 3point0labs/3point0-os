@@ -17,6 +17,8 @@ type Props = {
   error: string | null;
 };
 
+type SendState = "idle" | "sending" | "sent" | "error";
+
 export function DraftEmailModal({
   open,
   onClose,
@@ -32,11 +34,29 @@ export function DraftEmailModal({
   error,
 }: Props) {
   const [copied, setCopied] = useState(false);
-  const displayBody =
-    body +
-    (attachDeck
-      ? "\n\nHappy to share our media kit / deck if that would be helpful context."
-      : "");
+
+  // Editable fields — seeded from props, but user can change before sending.
+  const [editTo, setEditTo] = useState(toEmail ?? "");
+  const [editSubject, setEditSubject] = useState(subject ?? "");
+  const [editBody, setEditBody] = useState("");
+
+  const [sendState, setSendState] = useState<SendState>("idle");
+  const [sendError, setSendError] = useState<string | null>(null);
+
+  // Reset editable fields whenever a new draft is loaded.
+  useEffect(() => {
+    if (!open) return;
+    setEditTo(toEmail ?? "");
+    setEditSubject(subject ?? "");
+    const withDeck =
+      body +
+      (attachDeck
+        ? "\n\nHappy to share our media kit / deck if that would be helpful context."
+        : "");
+    setEditBody(withDeck);
+    setSendState("idle");
+    setSendError(null);
+  }, [open, toEmail, subject, body, attachDeck]);
 
   useEffect(() => {
     if (!open) return;
@@ -49,35 +69,58 @@ export function DraftEmailModal({
 
   useEffect(() => {
     if (!open) setCopied(false);
-  }, [open, body]);
+  }, [open]);
 
   const copy = useCallback(async () => {
-    const textToCopy =
-      body +
-      (attachDeck
-        ? "\n\nHappy to share our media kit / deck if that would be helpful context."
-        : "");
-    if (!textToCopy.trim()) return;
+    if (!editBody.trim()) return;
     try {
-      await navigator.clipboard.writeText(textToCopy);
+      await navigator.clipboard.writeText(editBody);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 2000);
     } catch {
       setCopied(false);
     }
-  }, [attachDeck, body]);
+  }, [editBody]);
 
-  const handleOpenGmailCompose = useCallback(() => {
-    if (!toEmail) return;
-    const composeSubject = subject || title || "Sponsor outreach";
-    const composeBody = displayBody || "";
-    const href = `mailto:${encodeURIComponent(toEmail)}?subject=${encodeURIComponent(
-      composeSubject
-    )}&body=${encodeURIComponent(composeBody)}`;
-    window.open(href, "_blank", "noopener,noreferrer");
-  }, [displayBody, subject, title, toEmail]);
+  const handleSendGmail = useCallback(async () => {
+    if (!editTo.trim() || !editSubject.trim() || !editBody.trim()) {
+      setSendState("error");
+      setSendError("To, Subject, and Body are required.");
+      return;
+    }
+    setSendState("sending");
+    setSendError(null);
+    try {
+      const res = await fetch("/api/gmail/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          to: editTo.trim(),
+          subject: editSubject.trim(),
+          body: editBody,
+        }),
+      });
+      const data = (await res.json()) as { sent?: boolean; error?: string; detail?: string };
+      if (!res.ok || !data.sent) {
+        setSendState("error");
+        setSendError(data.error || data.detail || `Send failed (${res.status})`);
+        return;
+      }
+      setSendState("sent");
+      // Auto-close after 1.5s on success.
+      window.setTimeout(() => {
+        onClose();
+      }, 1500);
+    } catch (err) {
+      setSendState("error");
+      setSendError(err instanceof Error ? err.message : "Network error");
+    }
+  }, [editTo, editSubject, editBody, onClose]);
 
   if (!open) return null;
+
+  const sending = sendState === "sending";
+  const sent = sendState === "sent";
 
   return (
     <div
@@ -92,13 +135,18 @@ export function DraftEmailModal({
         onClick={onClose}
         aria-label="Close dialog"
       />
-      <div className="glass-card relative z-10 max-h-[85vh] w-full max-w-3xl overflow-hidden rounded-xl shadow-2xl shadow-black/60">
+      <div className="glass-card relative z-10 max-h-[90vh] w-full max-w-3xl overflow-hidden rounded-xl shadow-2xl shadow-black/60">
         <div className="flex items-start justify-between gap-4 border-b border-[var(--color-border)] px-5 py-4">
           <div>
-            <h2 id="draft-email-title" className="font-mono text-lg tracking-tight text-[var(--color-accent-eggshell)]">
+            <h2
+              id="draft-email-title"
+              className="font-mono text-lg tracking-tight text-[var(--color-accent-eggshell)]"
+            >
               Draft Outreach Email
             </h2>
-            <p className="mt-1 font-mono text-xs uppercase tracking-wider text-[var(--color-text-secondary)]">{title}</p>
+            <p className="mt-1 font-mono text-xs uppercase tracking-wider text-[var(--color-text-secondary)]">
+              {title}
+            </p>
           </div>
           <button
             type="button"
@@ -112,7 +160,7 @@ export function DraftEmailModal({
           </button>
         </div>
 
-        <div className="max-h-[calc(85vh-9rem)] overflow-y-auto px-5 py-4">
+        <div className="max-h-[calc(90vh-10rem)] overflow-y-auto px-5 py-4">
           {loading && (
             <p className="font-mono text-sm text-[var(--color-accent-primary)]">Drafting with Claude...</p>
           )}
@@ -133,10 +181,58 @@ export function DraftEmailModal({
               {error}
             </p>
           )}
-          {!loading && !error && displayBody && (
-            <pre className="glass-card whitespace-pre-wrap rounded-lg p-4 font-sans text-sm leading-relaxed text-[color-mix(in_srgb,var(--color-accent-eggshell)_88%,transparent)]">
-              {displayBody}
-            </pre>
+
+          {!loading && !error && (
+            <div className="space-y-3">
+              <div>
+                <label className="mb-1 block font-mono text-[11px] uppercase tracking-wider text-[var(--color-text-secondary)]">
+                  To
+                </label>
+                <input
+                  type="email"
+                  value={editTo}
+                  onChange={(e) => setEditTo(e.target.value)}
+                  disabled={sending || sent}
+                  placeholder="recipient@company.com"
+                  className="min-h-11 w-full rounded-md border border-[var(--color-border)] bg-[var(--color-bg-primary)] px-2.5 py-2 text-sm text-[var(--color-accent-eggshell)] outline-none placeholder:text-[var(--color-text-secondary)] disabled:opacity-60"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block font-mono text-[11px] uppercase tracking-wider text-[var(--color-text-secondary)]">
+                  Subject
+                </label>
+                <input
+                  type="text"
+                  value={editSubject}
+                  onChange={(e) => setEditSubject(e.target.value)}
+                  disabled={sending || sent}
+                  className="min-h-11 w-full rounded-md border border-[var(--color-border)] bg-[var(--color-bg-primary)] px-2.5 py-2 text-sm text-[var(--color-accent-eggshell)] outline-none disabled:opacity-60"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block font-mono text-[11px] uppercase tracking-wider text-[var(--color-text-secondary)]">
+                  Body
+                </label>
+                <textarea
+                  value={editBody}
+                  onChange={(e) => setEditBody(e.target.value)}
+                  disabled={sending || sent}
+                  rows={14}
+                  className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-bg-primary)] px-3 py-2.5 font-sans text-sm leading-relaxed text-[color-mix(in_srgb,var(--color-accent-eggshell)_88%,transparent)] outline-none disabled:opacity-60"
+                />
+              </div>
+
+              {sendState === "error" && sendError && (
+                <p className="rounded-lg border border-red-900/50 bg-red-950/30 px-3 py-2 text-sm text-red-300">
+                  {sendError}
+                </p>
+              )}
+              {sent && (
+                <p className="rounded-lg border border-[rgba(0,212,170,0.45)] bg-[rgba(0,212,170,0.12)] px-3 py-2 font-mono text-sm uppercase tracking-wider text-[#00d4aa]">
+                  ✓ Sent via Gmail
+                </p>
+              )}
+            </div>
           )}
         </div>
 
@@ -146,6 +242,7 @@ export function DraftEmailModal({
               type="checkbox"
               checked={attachDeck}
               onChange={(e) => onToggleAttachDeck(e.target.checked)}
+              disabled={sending || sent}
               className="h-4 w-4 rounded border-[var(--color-border-strong)] bg-[var(--color-bg-primary)] accent-[var(--color-accent-coral)]"
             />
             <span>Mention media kit is available upon request</span>
@@ -153,19 +250,27 @@ export function DraftEmailModal({
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
-              onClick={handleOpenGmailCompose}
-              disabled={loading || !body || !!error || !toEmail}
+              onClick={handleSendGmail}
+              disabled={
+                loading ||
+                !editBody ||
+                !editTo ||
+                !editSubject ||
+                !!error ||
+                sending ||
+                sent
+              }
               className="min-h-11 rounded-lg border border-[rgba(160,85,42,0.45)] bg-[rgba(160,85,42,0.12)] px-4 py-2 font-mono text-xs uppercase tracking-wider text-[var(--color-accent-coral)] transition hover:bg-[rgba(160,85,42,0.2)] disabled:cursor-not-allowed disabled:opacity-40"
             >
               <span className="inline-flex items-center gap-2">
                 <GmailIcon />
-                Send via Gmail
+                {sending ? "Sending..." : sent ? "Sent" : "Send via Gmail"}
               </span>
             </button>
             <button
               type="button"
               onClick={copy}
-              disabled={loading || !body || !!error}
+              disabled={loading || !editBody || !!error || sending}
               className="btn-cta disabled:cursor-not-allowed disabled:opacity-40"
             >
               {copied ? "Copied" : "Copy to clipboard"}
