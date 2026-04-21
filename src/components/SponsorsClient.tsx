@@ -305,6 +305,7 @@ export function SponsorsClient({
     setSponsors(initial);
   }, [initial]);
   const [activeCategory, setActiveCategory] = useState<string>("All");
+  const [searchQuery, setSearchQuery] = useState<string>("");
   const [pending, startTransition] = useTransition();
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
@@ -465,7 +466,18 @@ export function SponsorsClient({
     return scopedSponsors.filter((s) => (s.category ?? "") === activeCategory);
   }, [activeCategory, scopedSponsors]);
 
+  const filteredBySearch = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return filteredByCategory;
+    return filteredByCategory.filter((s) => {
+      const company = (s.company ?? "").toLowerCase();
+      const contact = (s.contactName ?? "").toLowerCase();
+      return company.includes(q) || contact.includes(q);
+    });
+  }, [filteredByCategory, searchQuery]);
+
   const grouped = useMemo(() => {
+    
     const map: Record<Stage, Sponsor[]> = {
       New: [],
       Contacted: [],
