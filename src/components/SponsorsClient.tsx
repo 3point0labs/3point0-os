@@ -259,7 +259,10 @@ function isNumericCell(value: string) {
 
 function daysSince(dateStr: string) {
   if (!dateStr) return null;
-  const then = new Date(dateStr + "T00:00:00");
+  // Supabase returns either "YYYY-MM-DD" or a full ISO timestamp.
+  // Normalize: if it looks like just a date, tack on T00:00:00; otherwise let Date parse it.
+  const isDateOnly = /^\d{4}-\d{2}-\d{2}$/.test(dateStr);
+  const then = new Date(isDateOnly ? dateStr + "T00:00:00" : dateStr);
   if (Number.isNaN(then.getTime())) return null;
   const diff = Date.now() - then.getTime();
   return Math.max(0, Math.floor(diff / (1000 * 60 * 60 * 24)));
