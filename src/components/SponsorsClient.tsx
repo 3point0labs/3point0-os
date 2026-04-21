@@ -30,6 +30,7 @@ type DraftState = {
   channelReason: string;
   linkedinMessage: string | null;
   linkedinUrl: string | null;
+  sponsorId: string;
   attachDeck: boolean;
   loading: boolean;
   error: string | null;
@@ -93,6 +94,7 @@ const initialDraft: DraftState = {
   channelReason: "",
   linkedinMessage: null,
   linkedinUrl: null,
+  sponsorId: "",
   attachDeck: false,
   loading: false,
   error: null,
@@ -347,6 +349,7 @@ export function SponsorsClient({
       channelReason: "",
       linkedinMessage: null,
       linkedinUrl: null,
+      sponsorId: sponsor.id,
       attachDeck: false,
       loading: true,
       error: null,
@@ -495,7 +498,10 @@ export function SponsorsClient({
     <div className="space-y-5">
       <DraftEmailModal
         open={draft.open}
-        onClose={() => setDraft(initialDraft)}
+        onClose={() => {
+          setDraft(initialDraft);
+          router.refresh();
+        }}
         title={draft.title}
         body={draft.body}
         toEmail={draft.toEmail}
@@ -504,6 +510,7 @@ export function SponsorsClient({
         channelReason={draft.channelReason}
         linkedinMessage={draft.linkedinMessage}
         linkedinUrl={draft.linkedinUrl}
+        sponsorId={draft.sponsorId}
         attachDeck={draft.attachDeck}
         onToggleAttachDeck={(value) =>
           setDraft((d) => ({ ...d, attachDeck: value }))

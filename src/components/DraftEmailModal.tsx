@@ -13,6 +13,7 @@ type Props = {
   channelReason?: string;
   linkedinMessage?: string | null;
   linkedinUrl?: string | null;
+  sponsorId?: string;
   attachDeck: boolean;
   onToggleAttachDeck: (value: boolean) => void;
   loading: boolean;
@@ -32,6 +33,7 @@ export function DraftEmailModal({
   channelReason,
   linkedinMessage,
   linkedinUrl,
+  sponsorId,
   attachDeck,
   onToggleAttachDeck,
   loading,
@@ -117,6 +119,7 @@ export function DraftEmailModal({
           to: editTo.trim(),
           subject: editSubject.trim(),
           body: editBody,
+          sponsorId: sponsorId || undefined,
         }),
       });
       const data = (await res.json()) as { sent?: boolean; error?: string; detail?: string };

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { getGmailOAuthClientId, getGmailOAuthClientSecret, refreshAccessToken } from "@/lib/gmail-oauth"
+import { markSponsorContacted } from "@/lib/sponsors-mark-contacted"
 
 type SendBody = {
   to: string
@@ -8,10 +9,9 @@ type SendBody = {
   body: string
   cc?: string
   bcc?: string
+  sponsorId?: string
 }
 
-// Base64url encoding — Gmail API requires this, not standard base64.
-// Standard base64 uses + / = which break URL-safe transport.
 function toBase64Url(input: string): string {
   return Buffer.from(input, "utf-8")
     .toString("base64")
@@ -20,7 +20,6 @@ function toBase64Url(input: string): string {
     .replace(/=+$/, "")
 }
 
-// Encode non-ASCII subjects per RFC 2047 so accents/emoji don't get mangled.
 function encodeHeader(value: string): string {
   // eslint-disable-next-line no-control-regex
   if (/^[\x00-\x7F]*$/.test(value)) return value
@@ -100,7 +99,6 @@ export async function POST(request: Request) {
 
   let sendRes = await doSend()
 
-  // Token expired — refresh once and retry.
   if (sendRes.status === 401 && refreshToken && clientId && clientSecret) {
     try {
       const refreshed = await refreshAccessToken({ refreshToken, clientId, clientSecret })
@@ -130,9 +128,23 @@ export async function POST(request: Request) {
   }
 
   const result = (await sendRes.json()) as { id?: string; threadId?: string }
+
+  // Auto-advance sponsor stage + last_contact_date after successful send.
+  // Failure here shouldn't break the send — log and continue.
+  let sponsorUpdate: { stage?: string; error?: string } = {}
+  if (body.sponsorId) {
+    const marked = await markSponsorContacted(body.sponsorId)
+    if (marked.ok) {
+      sponsorUpdate = { stage: marked.stage }
+    } else {
+      sponsorUpdate = { error: marked.error }
+    }
+  }
+
   return NextResponse.json({
     sent: true,
     messageId: result.id,
     threadId: result.threadId,
+    sponsor: sponsorUpdate,
   })
 }

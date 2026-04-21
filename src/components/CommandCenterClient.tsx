@@ -16,6 +16,7 @@ type DraftState = {
   body: string;
   toEmail: string;
   subject: string;
+  sponsorId: string;
   attachDeck: boolean;
   loading: boolean;
   error: string | null;
@@ -45,6 +46,7 @@ const initialDraft: DraftState = {
   body: "",
   toEmail: "",
   subject: "",
+  sponsorId: "",
   attachDeck: false,
   loading: false,
   error: null,
@@ -236,6 +238,7 @@ export function CommandCenterClient({
       title: `${s.contactName} · ${s.company}`,
       toEmail: s.email,
       subject: `${s.company} x ${s.podcast} sponsorship`,
+      sponsorId: s.id,
       loading: true,
     });
     
@@ -269,6 +272,7 @@ export function CommandCenterClient({
         channelReason={draft.channelReason}
         linkedinMessage={draft.linkedinMessage}
         linkedinUrl={draft.linkedinUrl}
+        sponsorId={draft.sponsorId}
         attachDeck={draft.attachDeck}
         onToggleAttachDeck={(v) => setDraft((d) => ({ ...d, attachDeck: v }))}
         loading={draft.loading}
