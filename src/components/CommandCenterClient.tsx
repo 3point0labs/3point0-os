@@ -17,6 +17,9 @@ type DraftState = {
   toEmail: string;
   subject: string;
   sponsorId: string;
+  emailVerified?: boolean;
+  emailSource?: string;
+  emailValidationError?: string;
   attachDeck: boolean;
   loading: boolean;
   error: string | null;
@@ -47,6 +50,9 @@ const initialDraft: DraftState = {
   toEmail: "",
   subject: "",
   sponsorId: "",
+  emailVerified: undefined,
+  emailSource: undefined,
+  emailValidationError: undefined,
   attachDeck: false,
   loading: false,
   error: null,
@@ -239,6 +245,9 @@ export function CommandCenterClient({
       toEmail: s.email,
       subject: `${s.company} x ${s.podcast} sponsorship`,
       sponsorId: s.id,
+      emailVerified: s.email_verified,
+      emailSource: s.email_source,
+      emailValidationError: s.email_validation_error,
       loading: true,
     });
     
@@ -273,6 +282,9 @@ export function CommandCenterClient({
         linkedinMessage={draft.linkedinMessage}
         linkedinUrl={draft.linkedinUrl}
         sponsorId={draft.sponsorId}
+        emailVerified={draft.emailVerified}
+        emailSource={draft.emailSource}
+        emailValidationError={draft.emailValidationError}
         attachDeck={draft.attachDeck}
         onToggleAttachDeck={(v) => setDraft((d) => ({ ...d, attachDeck: v }))}
         loading={draft.loading}

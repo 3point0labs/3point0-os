@@ -36,3 +36,25 @@ const LABELS: Record<Status, { label: string; title: string; classes: string }> 
       classes: "border-[var(--color-border)] bg-transparent text-[var(--color-text-secondary)]",
     },
   };
+
+type Props = {
+  sponsor: Pick<Sponsor, "email" | "email_verified" | "email_source" | "email_validation_error">;
+  size?: "sm" | "md";
+};
+
+export function EmailBadge({ sponsor, size = "md" }: Props) {
+  const status = badgeStatus(sponsor);
+  const { label, title, classes } = LABELS[status];
+  const sizeClasses =
+    size === "sm"
+      ? "px-1.5 py-0.5 text-[9px]"
+      : "px-2 py-0.5 text-[10px]";
+  return (
+    <span
+      title={title}
+      className={`inline-flex items-center rounded-full border font-mono uppercase tracking-wider ${sizeClasses} ${classes}`}
+    >
+      {label}
+    </span>
+  );
+}

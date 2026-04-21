@@ -19,6 +19,7 @@ import { DiscoverSponsorsModal } from "./DiscoverSponsorsModal";
 import { DraftEmailModal } from "./DraftEmailModal";
 import { usePodcastWorkspace } from "./PodcastWorkspaceProvider";
 import { StageBadge } from "./StageBadge";
+import { EmailBadge } from "./EmailBadge";
 
 type DraftState = {
   open: boolean;
@@ -31,6 +32,9 @@ type DraftState = {
   linkedinMessage: string | null;
   linkedinUrl: string | null;
   sponsorId: string;
+  emailVerified?: boolean;
+  emailSource?: string;
+  emailValidationError?: string;
   attachDeck: boolean;
   loading: boolean;
   error: string | null;
@@ -95,6 +99,9 @@ const initialDraft: DraftState = {
   linkedinMessage: null,
   linkedinUrl: null,
   sponsorId: "",
+  emailVerified: undefined,
+  emailSource: undefined,
+  emailValidationError: undefined,
   attachDeck: false,
   loading: false,
   error: null,
@@ -353,6 +360,9 @@ export function SponsorsClient({
       linkedinMessage: null,
       linkedinUrl: null,
       sponsorId: sponsor.id,
+      emailVerified: sponsor.email_verified,
+      emailSource: sponsor.email_source,
+      emailValidationError: sponsor.email_validation_error,
       attachDeck: false,
       loading: true,
       error: null,
@@ -514,6 +524,9 @@ export function SponsorsClient({
         linkedinMessage={draft.linkedinMessage}
         linkedinUrl={draft.linkedinUrl}
         sponsorId={draft.sponsorId}
+        emailVerified={draft.emailVerified}
+        emailSource={draft.emailSource}
+        emailValidationError={draft.emailValidationError}
         attachDeck={draft.attachDeck}
         onToggleAttachDeck={(value) =>
           setDraft((d) => ({ ...d, attachDeck: value }))
@@ -872,6 +885,9 @@ export function SponsorsClient({
                       {s.contactName}
                       {s.contact_title ? ` · ${s.contact_title}` : ""}
                     </p>
+                    <div className="mt-1.5">
+                      <EmailBadge sponsor={s} />
+                    </div>
                     <div className="mt-2 flex items-center justify-between">
                       <span
                         className={`rounded-md border px-2 py-0.5 font-mono text-[10px] uppercase ${tierClass(

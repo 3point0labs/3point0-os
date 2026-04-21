@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { EmailBadge } from "./EmailBadge";
 
 type Props = {
   open: boolean;
@@ -14,6 +15,9 @@ type Props = {
   linkedinMessage?: string | null;
   linkedinUrl?: string | null;
   sponsorId?: string;
+  emailVerified?: boolean;
+  emailSource?: string;
+  emailValidationError?: string;
   attachDeck: boolean;
   onToggleAttachDeck: (value: boolean) => void;
   loading: boolean;
@@ -34,6 +38,9 @@ export function DraftEmailModal({
   linkedinMessage,
   linkedinUrl,
   sponsorId,
+  emailVerified,
+  emailSource,
+  emailValidationError,
   attachDeck,
   onToggleAttachDeck,
   loading,
@@ -207,9 +214,20 @@ export function DraftEmailModal({
           {!loading && !error && (
             <div className="space-y-3">
               <div>
-                <label className="mb-1 block font-mono text-[11px] uppercase tracking-wider text-[var(--color-text-secondary)]">
-                  To
-                </label>
+                <div className="mb-1 flex items-center justify-between gap-2">
+                  <label className="block font-mono text-[11px] uppercase tracking-wider text-[var(--color-text-secondary)]">
+                    To
+                  </label>
+                  <EmailBadge
+                    sponsor={{
+                      email: editTo,
+                      email_verified: emailVerified,
+                      email_source: emailSource,
+                      email_validation_error: emailValidationError,
+                    }}
+                    size="sm"
+                  />
+                </div>
                 <input
                   type="email"
                   value={editTo}
