@@ -673,7 +673,39 @@ export function SponsorsClient({
 
       <section className="mission-card p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative">
+              <svg
+                className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-text-secondary)]"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                aria-hidden
+              >
+                <circle cx="11" cy="11" r="7" />
+                <path d="m21 21-4.3-4.3" strokeLinecap="round" />
+              </svg>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search company or contact..."
+                className="min-h-9 w-64 rounded-md border border-[var(--color-border)] bg-[var(--color-bg-primary)] pl-8 pr-7 py-1.5 font-mono text-xs text-[var(--color-accent-eggshell)] outline-none placeholder:text-[var(--color-text-secondary)] focus:border-[rgba(201,168,124,0.5)]"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery("")}
+                  aria-label="Clear search"
+                  className="absolute right-1.5 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded text-[var(--color-text-secondary)] hover:bg-[rgba(139,69,19,0.12)] hover:text-[var(--color-accent-eggshell)]"
+                >
+                  <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path strokeLinecap="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              )}
+            </div>
             <CategoryTab
               active={activeCategory === "All"}
               onClick={() => setActiveCategory("All")}
