@@ -249,11 +249,13 @@ export function DraftEmailModal({
                     </p>
                     <div className="flex items-center gap-2">
                       {linkedinUrl && (
-                        
+                        <a
                           href={linkedinUrl}
                           target="_blank"
                           rel="noreferrer"
                           className="min-h-9 rounded border border-[rgba(0,119,181,0.45)] px-2 py-1 font-mono text-[10px] uppercase tracking-wider text-[#0077b5] hover:bg-[rgba(0,119,181,0.15)]"
+                          tabIndex={0}
+                          aria-label="Open LinkedIn profile"
                         >
                           Open profile
                         </a>
