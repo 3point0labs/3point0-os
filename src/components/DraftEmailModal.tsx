@@ -135,7 +135,8 @@ export function DraftEmailModal({
         onClick={onClose}
         aria-label="Close dialog"
       />
-      <div className="glass-card relative z-10 max-h-[90vh] w-full max-w-3xl overflow-hidden rounded-xl shadow-2xl shadow-black/60">
+      <div className="glass-card relative z-10 flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-xl shadow-2xl shadow-black/60">
+ 
         <div className="flex items-start justify-between gap-4 border-b border-[var(--color-border)] px-5 py-4">
           <div>
             <h2
@@ -160,7 +161,7 @@ export function DraftEmailModal({
           </button>
         </div>
 
-        <div className="max-h-[calc(90vh-10rem)] overflow-y-auto px-5 py-4">
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
           {loading && (
             <p className="font-mono text-sm text-[var(--color-accent-primary)]">Drafting with Claude...</p>
           )}
