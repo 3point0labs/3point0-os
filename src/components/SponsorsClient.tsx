@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState, useTransition } from "react"
 import { useRouter } from "next/navigation";
 import { findBestContact } from "@/app/actions/find-contact";
 import { draftOutreachEmail } from "@/app/actions/draft-email";
+import { bulkEnrichPrioritySponsors } from "@/app/actions/enrich-contact";
 import {
   addSponsor,
   checkSponsorReplies,
@@ -345,7 +346,8 @@ export function SponsorsClient({
   const [quickEdit, setQuickEdit] = useState<QuickEditState>(initialQuickEdit);
   const [schedule, setSchedule] = useState<ScheduleState>(initialSchedule);
   const [replyCheckResult, setReplyCheckResult] = useState<string>("");
-
+  const [enrichResult, setEnrichResult] = useState<string>("");
+  const [enrichingBulk, setEnrichingBulk] = useState(false);
   const [draft, setDraft] = useState<DraftState>(initialDraft);
 
   const openDraft = useCallback((sponsor: Sponsor) => {
@@ -769,7 +771,50 @@ export function SponsorsClient({
               type="button"
               onClick={() => setDiscoverOpen(true)}
               className="min-h-11 w-full rounded-lg border border-[var(--color-border-strong)] bg-transparent px-3 py-2 font-mono text-xs uppercase tracking-wider text-[var(--color-accent-primary)] hover:bg-[rgba(201,168,124,0.08)] lg:w-auto lg:min-h-0 lg:py-1.5"
-            >
+            ><button
+            type="button"
+            disabled={enrichingBulk}
+            onClick={() => {
+              if (enrichingBulk) return;
+              const confirmed = window.confirm(
+                "Verify all Tier S + A emails via RocketReach?\n\nThis costs ~1 search + 1 lookup credit per sponsor (~50 total). Verified sponsors are skipped automatically."
+              );
+              if (!confirmed) return;
+
+              setEnrichingBulk(true);
+              setEnrichResult("Enriching priority sponsors via RocketReach...");
+              startTransition(() => {
+                void bulkEnrichPrioritySponsors({
+                  tiers: ["S", "A"],
+                  minCreditsRemaining: 50,
+                }).then((res) => {
+                  setEnrichingBulk(false);
+                  if (!res.ok) {
+                    setEnrichResult(`Bulk enrich failed: ${res.error}`);
+                    return;
+                  }
+                  if (res.stoppedEarly && res.reason) {
+                    setEnrichResult(`Stopped: ${res.reason}`);
+                    return;
+                  }
+                  const parts = [
+                    `Enriched ${res.enriched}`,
+                    `skipped ${res.skipped}`,
+                    `failed ${res.failed}`,
+                    `${res.creditsUsedTotal} credits used`,
+                  ];
+                  if (res.personLookupRemainingAfter !== null) {
+                    parts.push(`${res.personLookupRemainingAfter} lookups left`);
+                  }
+                  setEnrichResult(parts.join(" · "));
+                  router.refresh();
+                });
+              });
+            }}
+            className="min-h-11 w-full rounded-lg border border-[rgba(0,212,170,0.45)] bg-[rgba(0,212,170,0.12)] px-3 py-2 font-mono text-xs uppercase tracking-wider text-[#00d4aa] hover:bg-[rgba(0,212,170,0.2)] disabled:cursor-not-allowed disabled:opacity-50 lg:w-auto lg:min-h-0 lg:py-1.5"
+          >
+            {enrichingBulk ? "Verifying..." : "✓ Verify Tier S+A emails"}
+          </button>
               Discover new sponsors
             </button>
             <label className="flex min-h-11 w-full cursor-pointer items-center justify-center rounded-lg border border-[rgba(232,83,61,0.45)] bg-[rgba(232,83,61,0.12)] px-3 py-2 font-mono text-xs uppercase tracking-wider text-[var(--color-accent-coral)] hover:bg-[rgba(232,83,61,0.18)] lg:w-auto lg:min-h-0 lg:py-1.5">
@@ -823,6 +868,7 @@ export function SponsorsClient({
 
         {importError && <p className="mt-3 text-xs text-red-300">{importError}</p>}
         {replyCheckResult && <p className="mt-3 text-xs text-[var(--color-text-secondary)]">{replyCheckResult}</p>}
+        {enrichResult && <p className="mt-3 text-xs text-[var(--color-text-secondary)]">{enrichResult}</p>}
         {importResult && (
           <p className="mt-3 text-xs text-[var(--color-text-secondary)]">
             Import complete:{" "}
