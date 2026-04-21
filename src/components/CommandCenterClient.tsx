@@ -21,6 +21,8 @@ type DraftState = {
   error: string | null;
   recommendedChannel: string;
   channelReason: string;
+  linkedinMessage: string | null;
+  linkedinUrl: string | null;
 };
 
 type HealthService = {
@@ -48,6 +50,8 @@ const initialDraft: DraftState = {
   error: null,
   recommendedChannel: "",
   channelReason: "",
+  linkedinMessage: null,
+  linkedinUrl: null,
 };
 
 function daysSince(dateStr: string) {
@@ -234,10 +238,19 @@ export function CommandCenterClient({
       subject: `${s.company} x ${s.podcast} sponsorship`,
       loading: true,
     });
+    
     void draftOutreachEmail(s.id).then((res) => {
       setDraft((d) =>
         res.ok
-          ? { ...d, loading: false, body: res.email, recommendedChannel: res.recommendedChannel, channelReason: res.reason }
+          ? {
+              ...d,
+              loading: false,
+              body: res.email,
+              recommendedChannel: res.recommendedChannel,
+              channelReason: res.reason,
+              linkedinMessage: res.linkedinMessage,
+              linkedinUrl: res.linkedinUrl,
+            }
           : { ...d, loading: false, error: res.error }
       );
     });
@@ -254,6 +267,8 @@ export function CommandCenterClient({
         subject={draft.subject}
         recommendedChannel={draft.recommendedChannel}
         channelReason={draft.channelReason}
+        linkedinMessage={draft.linkedinMessage}
+        linkedinUrl={draft.linkedinUrl}
         attachDeck={draft.attachDeck}
         onToggleAttachDeck={(v) => setDraft((d) => ({ ...d, attachDeck: v }))}
         loading={draft.loading}

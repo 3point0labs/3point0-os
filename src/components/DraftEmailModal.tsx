@@ -11,6 +11,8 @@ type Props = {
   subject?: string;
   recommendedChannel?: string;
   channelReason?: string;
+  linkedinMessage?: string | null;
+  linkedinUrl?: string | null;
   attachDeck: boolean;
   onToggleAttachDeck: (value: boolean) => void;
   loading: boolean;
@@ -28,22 +30,24 @@ export function DraftEmailModal({
   subject,
   recommendedChannel,
   channelReason,
+  linkedinMessage,
+  linkedinUrl,
   attachDeck,
   onToggleAttachDeck,
   loading,
   error,
 }: Props) {
   const [copied, setCopied] = useState(false);
+  const [liCopied, setLiCopied] = useState(false);
 
-  // Editable fields — seeded from props, but user can change before sending.
   const [editTo, setEditTo] = useState(toEmail ?? "");
   const [editSubject, setEditSubject] = useState(subject ?? "");
   const [editBody, setEditBody] = useState("");
+  const [editLinkedin, setEditLinkedin] = useState("");
 
   const [sendState, setSendState] = useState<SendState>("idle");
   const [sendError, setSendError] = useState<string | null>(null);
 
-  // Reset editable fields whenever a new draft is loaded.
   useEffect(() => {
     if (!open) return;
     setEditTo(toEmail ?? "");
@@ -54,9 +58,10 @@ export function DraftEmailModal({
         ? "\n\nHappy to share our media kit / deck if that would be helpful context."
         : "");
     setEditBody(withDeck);
+    setEditLinkedin(linkedinMessage ?? "");
     setSendState("idle");
     setSendError(null);
-  }, [open, toEmail, subject, body, attachDeck]);
+  }, [open, toEmail, subject, body, attachDeck, linkedinMessage]);
 
   useEffect(() => {
     if (!open) return;
@@ -68,7 +73,10 @@ export function DraftEmailModal({
   }, [open, onClose]);
 
   useEffect(() => {
-    if (!open) setCopied(false);
+    if (!open) {
+      setCopied(false);
+      setLiCopied(false);
+    }
   }, [open]);
 
   const copy = useCallback(async () => {
@@ -81,6 +89,17 @@ export function DraftEmailModal({
       setCopied(false);
     }
   }, [editBody]);
+
+  const copyLinkedin = useCallback(async () => {
+    if (!editLinkedin.trim()) return;
+    try {
+      await navigator.clipboard.writeText(editLinkedin);
+      setLiCopied(true);
+      window.setTimeout(() => setLiCopied(false), 2000);
+    } catch {
+      setLiCopied(false);
+    }
+  }, [editLinkedin]);
 
   const handleSendGmail = useCallback(async () => {
     if (!editTo.trim() || !editSubject.trim() || !editBody.trim()) {
@@ -107,7 +126,6 @@ export function DraftEmailModal({
         return;
       }
       setSendState("sent");
-      // Auto-close after 1.5s on success.
       window.setTimeout(() => {
         onClose();
       }, 1500);
@@ -121,6 +139,7 @@ export function DraftEmailModal({
 
   const sending = sendState === "sending";
   const sent = sendState === "sent";
+  const hasLinkedin = Boolean(editLinkedin.trim());
 
   return (
     <div
@@ -136,7 +155,6 @@ export function DraftEmailModal({
         aria-label="Close dialog"
       />
       <div className="glass-card relative z-10 flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-xl shadow-2xl shadow-black/60">
- 
         <div className="flex items-start justify-between gap-4 border-b border-[var(--color-border)] px-5 py-4">
           <div>
             <h2
@@ -222,6 +240,46 @@ export function DraftEmailModal({
                   className="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-bg-primary)] px-3 py-2.5 font-sans text-sm leading-relaxed text-[color-mix(in_srgb,var(--color-accent-eggshell)_88%,transparent)] outline-none disabled:opacity-60"
                 />
               </div>
+
+              {hasLinkedin && (
+                <div className="rounded-lg border border-[rgba(0,119,181,0.35)] bg-[rgba(0,119,181,0.08)] p-3">
+                  <div className="mb-2 flex items-center justify-between">
+                    <p className="font-mono text-[11px] uppercase tracking-wider text-[#0077b5]">
+                      LinkedIn connection note
+                    </p>
+                    <div className="flex items-center gap-2">
+                      {linkedinUrl && (
+                        
+                          href={linkedinUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="min-h-9 rounded border border-[rgba(0,119,181,0.45)] px-2 py-1 font-mono text-[10px] uppercase tracking-wider text-[#0077b5] hover:bg-[rgba(0,119,181,0.15)]"
+                        >
+                          Open profile
+                        </a>
+                      )}
+                      <button
+                        type="button"
+                        onClick={copyLinkedin}
+                        disabled={sending || sent}
+                        className="min-h-9 rounded border border-[rgba(0,119,181,0.45)] bg-[rgba(0,119,181,0.12)] px-2 py-1 font-mono text-[10px] uppercase tracking-wider text-[#0077b5] hover:bg-[rgba(0,119,181,0.2)] disabled:opacity-40"
+                      >
+                        {liCopied ? "✓ Copied" : "Copy"}
+                      </button>
+                    </div>
+                  </div>
+                  <textarea
+                    value={editLinkedin}
+                    onChange={(e) => setEditLinkedin(e.target.value)}
+                    disabled={sending || sent}
+                    rows={3}
+                    className="w-full rounded-md border border-[rgba(0,119,181,0.3)] bg-[var(--color-bg-primary)] px-2.5 py-2 font-sans text-sm leading-relaxed text-[color-mix(in_srgb,var(--color-accent-eggshell)_88%,transparent)] outline-none disabled:opacity-60"
+                  />
+                  <p className="mt-1.5 text-[10px] text-[var(--color-text-secondary)]">
+                    Send the email first, then paste this as a LinkedIn connection request.
+                  </p>
+                </div>
+              )}
 
               {sendState === "error" && sendError && (
                 <p className="rounded-lg border border-red-900/50 bg-red-950/30 px-3 py-2 text-sm text-red-300">

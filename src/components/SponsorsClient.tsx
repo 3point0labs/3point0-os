@@ -28,6 +28,8 @@ type DraftState = {
   subject: string;
   recommendedChannel: string;
   channelReason: string;
+  linkedinMessage: string | null;
+  linkedinUrl: string | null;
   attachDeck: boolean;
   loading: boolean;
   error: string | null;
@@ -89,6 +91,8 @@ const initialDraft: DraftState = {
   subject: "",
   recommendedChannel: "",
   channelReason: "",
+  linkedinMessage: null,
+  linkedinUrl: null,
   attachDeck: false,
   loading: false,
   error: null,
@@ -340,6 +344,8 @@ export function SponsorsClient({
       subject: `${sponsor.company} x ${sponsor.podcast} sponsorship`,
       recommendedChannel: "",
       channelReason: "",
+      linkedinMessage: null,
+      linkedinUrl: null,
       attachDeck: false,
       loading: true,
       error: null,
@@ -353,6 +359,8 @@ export function SponsorsClient({
               body: result.email,
               recommendedChannel: result.recommendedChannel,
               channelReason: result.reason,
+              linkedinMessage: result.linkedinMessage,
+              linkedinUrl: result.linkedinUrl,
               error: null,
             }
           : { ...d, loading: false, body: "", error: result.error }
@@ -482,6 +490,8 @@ export function SponsorsClient({
         subject={draft.subject}
         recommendedChannel={draft.recommendedChannel}
         channelReason={draft.channelReason}
+        linkedinMessage={draft.linkedinMessage}
+        linkedinUrl={draft.linkedinUrl}
         attachDeck={draft.attachDeck}
         onToggleAttachDeck={(value) =>
           setDraft((d) => ({ ...d, attachDeck: value }))

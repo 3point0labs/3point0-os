@@ -9,6 +9,24 @@ import type { Sponsor } from "@/lib/types";
 
 const MODEL = "claude-sonnet-4-20250514";
 
+type ChannelType =
+  | "EMAIL"
+  | "LINKEDIN DM"
+  | "WEBSITE INQUIRY"
+  | "INSTAGRAM DM"
+  | "COMBINATION";
+
+export type DraftOutreachResult =
+  | {
+      ok: true;
+      email: string;
+      linkedinMessage: string | null;
+      linkedinUrl: string | null;
+      recommendedChannel: ChannelType;
+      reason: string;
+    }
+  | { ok: false; error: string };
+
 async function getCompanyNewsSnippet(sponsor: Sponsor): Promise<string | null> {
   const query = `${sponsor.company} latest campaign product launch news`;
   const url = `https://duckduckgo.com/html/?q=${encodeURIComponent(query)}&ia=news`;
@@ -45,22 +63,22 @@ async function getCompanyNewsSnippet(sponsor: Sponsor): Promise<string | null> {
   }
 }
 
-export async function draftOutreachEmail(
-  sponsorId: string
-): Promise<
-  | {
-      ok: true;
-      email: string;
-      recommendedChannel:
-        | "EMAIL"
-        | "LINKEDIN DM"
-        | "WEBSITE INQUIRY"
-        | "INSTAGRAM DM"
-        | "COMBINATION";
-      reason: string;
-    }
-  | { ok: false; error: string }
-> {
+function parseJsonSafe(text: string): { email?: string; linkedinMessage?: string } | null {
+  const cleaned = text
+    .trim()
+    .replace(/^```json\s*/i, "")
+    .replace(/^```\s*/i, "")
+    .replace(/```$/i, "")
+    .trim();
+  try {
+    const parsed = JSON.parse(cleaned) as { email?: string; linkedinMessage?: string };
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+export async function draftOutreachEmail(sponsorId: string): Promise<DraftOutreachResult> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey?.trim()) {
     return { ok: false, error: "ANTHROPIC_API_KEY is not configured." };
@@ -88,52 +106,62 @@ export async function draftOutreachEmail(
     podcast: sponsor.podcast,
   });
 
-  const system = `You are a partnerships lead at 3point0 Labs writing concise, highly personalized B2B cold outreach emails for podcast sponsorship.
+  const system = `You are a partnerships lead at 3point0 Labs writing concise, highly personalized B2B cold outreach for podcast sponsorship.
 
-Output only the email body (no subject line unless it fits naturally). No markdown fences. Use a specific, brand-aware tone that reflects familiarity with the sponsor's recent activity when context is provided. Always sign as:
+You MUST return strict JSON only. No markdown fences, no prose before or after.
+
+JSON shape:
+{
+  "email": "full email body, or empty string if channel is LINKEDIN DM / INSTAGRAM DM only",
+  "linkedinMessage": "short LinkedIn connection note or DM, or empty string if not applicable"
+}
+
+Rules:
+- EMAIL channel: put the full email in "email", leave "linkedinMessage" as empty string.
+- LINKEDIN DM channel: put the LinkedIn DM in "linkedinMessage", leave "email" as empty string.
+- INSTAGRAM DM channel: put the DM in "email" (UI treats it as primary body), leave "linkedinMessage" empty.
+- WEBSITE INQUIRY channel: put the inquiry form message in "email", leave "linkedinMessage" empty.
+- COMBINATION channel: put the full cold email in "email" AND a short (1-2 sentence, max 300 chars) LinkedIn connection note in "linkedinMessage". Both must be present.
+
+The email should always close with the sign-off:
 Marquel Martin
-3point0 Labs`;
+3point0 Labs
 
-  const user = `Write a short, professional cold outreach email for podcast sponsorship.
+Do not add the sign-off to the linkedinMessage — it's a short DM.
+Do not include subject lines in the email body.
+Do not fabricate listener counts, awards, or stats.`;
 
-Context:
-- Sender: 3point0 Labs, a media and content company exploring podcast sponsorship opportunities.
-- Recipient: ${sponsor.contactName} at ${sponsor.company}
-- Podcast being pitched: ${sponsor.podcast}
-${sponsor.notes ? `- Internal notes about this prospect (use lightly if relevant): ${sponsor.notes}` : ""}
-${sponsor.pitch_angle ? `- Pitch angle for this sponsor (important): ${sponsor.pitch_angle}` : ""}
-${enrichment ? `- Recent public news or campaigns about ${sponsor.company}: ${enrichment}` : ""}
-${sponsor.youtubeUrl ? `- Podcast YouTube presence for this conversation: ${sponsor.youtubeUrl}` : ""}
-${sponsor.socialHandle ? `- Sponsor social handle: ${sponsor.socialHandle}` : ""}
-${isPressbox ? `- Pressbox Chronicles context: sports storytelling podcast targeting sports brands, sports betting, athletic apparel, sports media, team partnerships, NIL platforms, sports law firms, and financial advisors targeting athletes.` : ""}
+  const user = `Draft outreach for podcast sponsorship.
 
-Requirements:
-- RECOMMENDED CHANNEL: ${recommendation.channel} — ${recommendation.reason}
-- Personalize using the recipient's name and company.
-- Mention that 3point0 Labs is a media/content company and we're reaching out about sponsoring ${sponsor.podcast}.
-- Use the news/context above to reference something specific about their brand, recent work, or priorities, but do not fabricate details beyond what is provided.
-- Use the provided pitch angle as a primary reason this sponsor is a fit, and weave it naturally into the outreach.
-- If YouTube URL or social handle are provided, you may reference them lightly (e.g. \"we love how you're showing up on YouTube at ${sponsor.youtubeUrl}\").
-- Channel-specific output:
-  - EMAIL: draft a cold email.
-  - LINKEDIN DM: draft a shorter warmer LinkedIn message (max 150 words).
-  - WEBSITE INQUIRY: draft a brief inquiry form message.
-  - INSTAGRAM DM: draft a concise, warm DM.
-  - COMBINATION: draft the primary outreach email body first, then add a one-line LinkedIn connection note after a blank line.
-- Keep it professional, direct, and easy to skim.
-- At most 3 short paragraphs.
-- If podcast is Pressbox Chronicles, use an energetic sports-forward tone with press-box credibility.
-- Do not invent specific listener numbers, download stats, or awards unless provided above.
-- Always close with an appropriate sign-off that includes:
-  Marquel Martin
-  3point0 Labs`;
+Recipient: ${sponsor.contactName} at ${sponsor.company}
+Podcast: ${sponsor.podcast}
+${sponsor.contact_title ? `Contact title: ${sponsor.contact_title}` : ""}
+${sponsor.notes ? `Internal notes (use lightly): ${sponsor.notes}` : ""}
+${sponsor.pitch_angle ? `Pitch angle (important): ${sponsor.pitch_angle}` : ""}
+${enrichment ? `Recent public news about ${sponsor.company}: ${enrichment}` : ""}
+${sponsor.youtubeUrl ? `Podcast YouTube: ${sponsor.youtubeUrl}` : ""}
+${sponsor.socialHandle ? `Sponsor social handle: ${sponsor.socialHandle}` : ""}
+${isPressbox ? `Pressbox context: sports storytelling podcast. Targets sports brands, betting, athletic apparel, sports media, team partnerships, NIL platforms, sports law firms, athlete financial advisors.` : `One54 context: African business, innovation, and culture podcast. Targets African fintech, global brands entering Africa, CPG, enterprise SaaS, media.`}
+
+Recommended channel: ${recommendation.channel}
+Reason: ${recommendation.reason}
+
+Tone:
+- 3point0 Labs is a media/content company reaching out about sponsoring ${sponsor.podcast}.
+- ${isPressbox ? "Energetic, sports-forward, press-box credibility." : "Professional, insider-led, operator-audience framing."}
+- Reference something specific from the recent news if provided. Do not invent.
+- Weave the pitch angle naturally.
+- Max 3 short paragraphs for email.
+- LinkedIn connection note (if COMBINATION): 1-2 sentences, references the email you just sent.
+
+Return JSON only.`;
 
   const client = new Anthropic({ apiKey });
 
   try {
     const message = await client.messages.create({
       model: MODEL,
-      max_tokens: 1200,
+      max_tokens: 1400,
       system,
       messages: [{ role: "user", content: user }],
     });
@@ -151,6 +179,27 @@ Requirements:
       return { ok: false, error: "The model returned an empty response." };
     }
 
+    const parsed = parseJsonSafe(text);
+    if (!parsed) {
+      await logAgentEvent(agentId, "draft-email:error", {
+        company: sponsor.company,
+        reason: "failed to parse JSON",
+      });
+      return { ok: false, error: "Agent returned invalid JSON. Try again." };
+    }
+
+    const emailBody = (parsed.email ?? "").trim();
+    const linkedinMessage = (parsed.linkedinMessage ?? "").trim();
+
+    // Sanity: if channel is EMAIL-based and no email body came back, fail
+    if (!emailBody && !linkedinMessage) {
+      await logAgentEvent(agentId, "draft-email:error", {
+        company: sponsor.company,
+        reason: "both email and linkedin empty",
+      });
+      return { ok: false, error: "Agent returned no content." };
+    }
+
     await logAgentEvent(agentId, "draft-email:done", {
       company: sponsor.company,
       sponsorId: sponsor.id,
@@ -159,13 +208,14 @@ Requirements:
 
     return {
       ok: true,
-      email: text,
+      email: emailBody,
+      linkedinMessage: linkedinMessage || null,
+      linkedinUrl: sponsor.linkedin_url ?? null,
       recommendedChannel: recommendation.channel,
       reason: recommendation.reason,
     };
   } catch (e) {
-    const msg =
-      e instanceof Error ? e.message : "Failed to generate email.";
+    const msg = e instanceof Error ? e.message : "Failed to generate email.";
     await logAgentEvent(agentId, "draft-email:error", {
       company: sponsor.company,
       reason: msg,
@@ -175,12 +225,7 @@ Requirements:
 }
 
 function recommendChannel(sponsor: Sponsor): {
-  channel:
-    | "EMAIL"
-    | "LINKEDIN DM"
-    | "WEBSITE INQUIRY"
-    | "INSTAGRAM DM"
-    | "COMBINATION";
+  channel: ChannelType;
   reason: string;
 } {
   const title = (sponsor.contact_title ?? "").toLowerCase();
