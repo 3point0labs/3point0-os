@@ -485,11 +485,11 @@ export function SponsorsClient({
       Negotiating: [],
       Closed: [],
     };
-    for (const sponsor of filteredByCategory) {
+    for (const sponsor of filteredBySearch) {
       map[sponsor.stage].push(sponsor);
     }
     return map;
-  }, [filteredByCategory]);
+  }, [filteredBySearch]);
 
   return (
     <div className="space-y-5">
