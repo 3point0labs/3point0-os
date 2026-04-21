@@ -34,6 +34,9 @@ export type Sponsor = {
   scheduled_call_date?: string;
   gmail_thread_id?: string;
   last_reply_date?: string;
+  email_verified?: boolean;
+  email_source?: string;
+  email_validation_error?: string;
 };
 
 export type ClientHealthStatus = "strong" | "watch" | "at-risk";

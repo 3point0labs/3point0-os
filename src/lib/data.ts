@@ -62,6 +62,9 @@ function sponsorFromRow(row: Record<string, unknown>): Sponsor {
     socialHandle: row.social_handle ? String(row.social_handle) : undefined,
     youtubeUrl: row.youtube_url ? String(row.youtube_url) : undefined,
     scheduled_call_date: row.scheduled_call_date ? String(row.scheduled_call_date) : undefined,
+    email_verified: row.email_verified === true,
+    email_source: row.email_source ? String(row.email_source) : undefined,
+    email_validation_error: row.email_validation_error ? String(row.email_validation_error) : undefined,
   };
 }
 
