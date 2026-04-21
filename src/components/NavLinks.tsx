@@ -43,20 +43,13 @@ export function NavLinks() {
                 : "text-[var(--color-text-secondary)] hover:border-[var(--color-border)] hover:bg-[rgba(139,69,19,0.04)] hover:text-[var(--color-accent-eggshell)]"
             }`}
           >
-            <span className="flex items-center gap-2">
+<span className="flex items-center gap-2">
               {active && (
                 <span
                   className="h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--color-accent-coral)]"
                   aria-hidden
                 />
               )}
-              {item.icon === "target" ? (
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
-                  <circle cx="12" cy="12" r="8.5" stroke="currentColor" strokeWidth="1.5" />
-                  <circle cx="12" cy="12" r="4.5" stroke="currentColor" strokeWidth="1.5" />
-                  <circle cx="12" cy="12" r="1.4" fill="currentColor" />
-                </svg>
-              ) : null}
               <span>{item.label}</span>
             </span>
             {showBadge && (
