@@ -8,9 +8,7 @@ import { getSuggestionCount } from "@/app/actions/suggestions";
 const items = [
   { href: "/command", label: "Command Center" },
   { href: "/broadcast", label: "Broadcast Room" },
-  { href: "/sponsors", label: "Contacts" },
   { href: "/partnerships", label: "Partnerships", badge: true as const },
-  { href: "/dealflow", label: "DEALFLOW", icon: "target" as const },
   { href: "/settings", label: "Settings" },
 ];
 

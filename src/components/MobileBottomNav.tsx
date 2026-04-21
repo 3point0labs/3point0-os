@@ -10,7 +10,6 @@ const allItems = [
   { href: "/command", label: "Command", Icon: IconCommand },
   { href: "/broadcast", label: "Broadcast", Icon: IconBroadcast },
   { href: "/partnerships", label: "Partnerships", Icon: IconPartnerships },
-  { href: "/dealflow", label: "DealFlow", Icon: IconDealFlow },
   { href: "/settings", label: "Settings", Icon: IconSettings, needsSettingsRole: true as const },
 ] as const;
 
@@ -118,17 +117,6 @@ function IconSettings({ active }: { active: boolean }) {
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-    </svg>
-  );
-}
-
-function IconDealFlow({ active }: { active: boolean }) {
-  const c = active ? "var(--color-accent-coral)" : "var(--color-text-secondary)";
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <circle cx="12" cy="12" r="8.5" stroke={c} strokeWidth="1.5" />
-      <circle cx="12" cy="12" r="4.5" stroke={c} strokeWidth="1.5" />
-      <circle cx="12" cy="12" r="1.5" fill={c} />
     </svg>
   );
 }
