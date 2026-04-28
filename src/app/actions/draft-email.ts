@@ -1,6 +1,8 @@
 "use server";
 
 import Anthropic from "@anthropic-ai/sdk";
+import { promises as fs } from "fs";
+import path from "path";
 import { assertPodcastAccess } from "@/lib/auth-server";
 import { getSponsors } from "@/lib/data";
 import { logAgentEvent } from "@/lib/mailroom/activity";
@@ -26,6 +28,24 @@ export type DraftOutreachResult =
       reason: string;
     }
   | { ok: false; error: string };
+
+async function loadPlaybooks(podcast: string): Promise<string> {
+  const slug = podcast === "Pressbox Chronicles" ? "pressbox" : "one54";
+  const dir = path.join(process.cwd(), "docs", "playbooks");
+  const pitchPath = path.join(dir, `${slug}-pitch.md`);
+  const targetsPath = path.join(dir, `${slug}-target-sponsors.md`);
+
+  try {
+    const [pitch, targets] = await Promise.all([
+      fs.readFile(pitchPath, "utf-8"),
+      fs.readFile(targetsPath, "utf-8"),
+    ]);
+    return `===== PITCH PLAYBOOK (${podcast}) =====\n${pitch}\n\n===== TARGET SPONSORS PLAYBOOK (${podcast}) =====\n${targets}`;
+  } catch (e) {
+    console.error(`[draft-email] Failed to load playbooks for ${podcast}:`, e);
+    return "";
+  }
+}
 
 async function getCompanyNewsSnippet(sponsor: Sponsor): Promise<string | null> {
   const query = `${sponsor.company} latest campaign product launch news`;
@@ -96,14 +116,20 @@ export async function draftOutreachEmail(sponsorId: string): Promise<DraftOutrea
     return { ok: false, error: "Unauthorized" };
   }
 
-  const enrichment = await getCompanyNewsSnippet(sponsor);
+  const [enrichment, playbooks] = await Promise.all([
+    getCompanyNewsSnippet(sponsor),
+    loadPlaybooks(sponsor.podcast),
+  ]);
+
   const recommendation = recommendChannel(sponsor);
   const isPressbox = sponsor.podcast === "Pressbox Chronicles";
   const agentId: AgentId = isPressbox ? "pressbox-outreach" : "sponsor-outreach";
+
   await logAgentEvent(agentId, "draft-email:start", {
     company: sponsor.company,
     sponsorId: sponsor.id,
     podcast: sponsor.podcast,
+    playbooksLoaded: playbooks.length > 0,
   });
 
   const system = `You are a partnerships lead at 3point0 Labs writing concise, highly personalized B2B cold outreach for podcast sponsorship.
@@ -112,44 +138,52 @@ You MUST return strict JSON only. No markdown fences, no prose before or after.
 
 JSON shape:
 {
-  "email": "full email body, or empty string if channel is LINKEDIN DM / INSTAGRAM DM only",
+  "email": "full email body, or empty string if channel is LINKEDIN DM only",
   "linkedinMessage": "short LinkedIn connection note or DM, or empty string if not applicable"
 }
 
-Rules:
-- EMAIL channel: put the full email in "email", leave "linkedinMessage" as empty string.
-- LINKEDIN DM channel: put the LinkedIn DM in "linkedinMessage", leave "email" as empty string.
-- INSTAGRAM DM channel: put the DM in "email" (UI treats it as primary body), leave "linkedinMessage" empty.
-- WEBSITE INQUIRY channel: put the inquiry form message in "email", leave "linkedinMessage" empty.
-- COMBINATION channel: put the full cold email in "email" AND a short (1-2 sentence, max 300 chars) LinkedIn connection note in "linkedinMessage". Both must be present.
+Channel rules:
+- EMAIL: put the full email in "email", leave "linkedinMessage" empty.
+- LINKEDIN DM: put the DM in "linkedinMessage", leave "email" empty.
+- INSTAGRAM DM: put the DM in "email" (UI treats it as primary body), leave "linkedinMessage" empty.
+- WEBSITE INQUIRY: put the inquiry form message in "email", leave "linkedinMessage" empty.
+- COMBINATION: put the full cold email in "email" AND a short (1-2 sentence, max 300 chars) LinkedIn connection note in "linkedinMessage". Both required.
 
-The email should always close with the sign-off:
-Marquel Martin
-3point0 Labs
+Sign-off rules:
+- Email always closes with:
+  Marquel Martin
+  3point0 Labs
+- Do NOT add the sign-off to linkedinMessage (it's a short DM).
+- Do NOT include subject lines in the email body.
+- Do NOT fabricate listener counts, awards, or stats — use only what's in the playbook.
 
-Do not add the sign-off to the linkedinMessage — it's a short DM.
-Do not include subject lines in the email body.
-Do not fabricate listener counts, awards, or stats.`;
+===== BRAND CONTEXT (authoritative) =====
+The following two markdown files define the brand voice, audience, positioning, proof points, and target categories for this specific podcast. Treat them as the source of truth. Use specific numbers and references from these files when they fit naturally. Follow the "Do say / Don't say" guidance.
+
+${playbooks || "(No playbook loaded — fall back to professional, direct outreach.)"}
+===== END BRAND CONTEXT =====`;
 
   const user = `Draft outreach for podcast sponsorship.
 
 Recipient: ${sponsor.contactName} at ${sponsor.company}
 Podcast: ${sponsor.podcast}
 ${sponsor.contact_title ? `Contact title: ${sponsor.contact_title}` : ""}
+${sponsor.tier ? `Tier: ${sponsor.tier}` : ""}
+${sponsor.category ? `Category: ${sponsor.category}` : ""}
 ${sponsor.notes ? `Internal notes (use lightly): ${sponsor.notes}` : ""}
 ${sponsor.pitch_angle ? `Pitch angle (important): ${sponsor.pitch_angle}` : ""}
 ${enrichment ? `Recent public news about ${sponsor.company}: ${enrichment}` : ""}
 ${sponsor.youtubeUrl ? `Podcast YouTube: ${sponsor.youtubeUrl}` : ""}
 ${sponsor.socialHandle ? `Sponsor social handle: ${sponsor.socialHandle}` : ""}
-${isPressbox ? `Pressbox context: sports storytelling podcast. Targets sports brands, betting, athletic apparel, sports media, team partnerships, NIL platforms, sports law firms, athlete financial advisors.` : `One54 context: African business, innovation, and culture podcast. Targets African fintech, global brands entering Africa, CPG, enterprise SaaS, media.`}
 
 Recommended channel: ${recommendation.channel}
 Reason: ${recommendation.reason}
 
-Tone:
-- 3point0 Labs is a media/content company reaching out about sponsoring ${sponsor.podcast}.
-- ${isPressbox ? "Energetic, sports-forward, press-box credibility." : "Professional, insider-led, operator-audience framing."}
-- Reference something specific from the recent news if provided. Do not invent.
+Requirements:
+- Apply the brand voice and positioning from the playbooks above.
+- Match the sponsor to a target category from the target-sponsors playbook and use that category's angle.
+- Reference one specific data point from the playbook (e.g. real audience number, real guest, real production credit) — but only when it lands naturally.
+- Reference the company's recent news if provided. Do not invent.
 - Weave the pitch angle naturally.
 - Max 3 short paragraphs for email.
 - LinkedIn connection note (if COMBINATION): 1-2 sentences, references the email you just sent.
@@ -191,7 +225,6 @@ Return JSON only.`;
     const emailBody = (parsed.email ?? "").trim();
     const linkedinMessage = (parsed.linkedinMessage ?? "").trim();
 
-    // Sanity: if channel is EMAIL-based and no email body came back, fail
     if (!emailBody && !linkedinMessage) {
       await logAgentEvent(agentId, "draft-email:error", {
         company: sponsor.company,
