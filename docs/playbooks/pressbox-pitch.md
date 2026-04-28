@@ -1,79 +1,105 @@
-# Pressbox Chronicles — Sponsor Pitch Playbook
+# Press Box Chronicles — Sponsor Pitch Playbook
 
-**Purpose:** Stable brand positioning. Read by the outreach agent before drafting any Pressbox email. Update only when the show's fundamentals change.
+**Purpose:** Authoritative brand context for the outreach agent. Every Pressbox sponsor email should reflect the positioning, voice, and proof points below. Update only when the show's fundamentals change.
 
 ---
 
 ## One-liner
 
-Pressbox Chronicles is a sports storytelling podcast with press-box credibility — going deeper than hot takes, telling the human stories behind the game.
+Press Box Chronicles with Jeff Pearlman is where a 30-year sports journalism career meets a weekly conversation, pulling back the curtain on the stories no one else tells. Story-driven, not take-driven. Press-box credibility, not hot-take theater.
 
-## Why this show matters now
+## Why this show is different
 
-- Sports audiences are oversaturated with takes and undersupplied with stories
-- Athletes, agents, and operators want a platform that respects the craft
-- Marquel Martin is studying for the NFLPA Contract Advisor exam (July 2026) — Pressbox has a direct pipeline to the agent world that few sports podcasts have
-- [FILL IN — origin story, journalism background, credibility]
+- The Hollywood Reporter called it "**the new 30-for-30**" — that's the lane: documentary-grade sports storytelling
+- Jeff Pearlman wrote the definitive books on Vince Lombardi, Barry Bonds, the Dallas Cowboys, and the Showtime Lakers — one of the most credible sports voices alive
+- His ad reads land differently because the audience already trusts his voice on sports history
+- Adult men who have watched sports their entire lives and want stories that respect that intelligence — not hot takes, not highlights, the real thing
+- Top 25% of all Blue Wire Network shows by audio downloads
+- Distributed via Blue Wire — institutional credibility, not an indie show
 
-## Audience
+## Host
 
-- **Who listens:** [FILL IN — sports fans, collegiate athletes, sports-industry professionals, bettors?]
-- **Geography:** [FILL IN — top markets]
-- **Age / income:** [FILL IN]
-- **What they care about:** storytelling, player narratives, NIL, agent/management side, sports business
-- **Size:** [FILL IN — avg downloads, monthly listeners, YouTube subs]
+**Jeff Pearlman** — 30-year sports journalism career. Author of the definitive books on Vince Lombardi, Barry Bonds, the Dallas Cowboys, and the Showtime Lakers. One of the most credible voices in sports media.
 
-## Format
+## Audience (last 28 days)
 
-- Long-form interview + narrative episodes (full episodes only — no shorts in the main feed)
-- Released [FILL IN — weekly / bi-weekly]
-- Distributed on Spotify, Apple Podcasts, YouTube
-- [FILL IN — any newsletter, social amplification]
+- **YouTube:** 1.4M views, 640.5K unique viewers, 65K subscribers, 66% returning viewers (loyal, engaged base)
+- **Engagement:** 7:13 avg view duration · 54.4% avg % viewed · 104.3K watch hours · 271 videos published
+- **Audio:** 30K monthly audio downloads (Top 25% of Blue Wire Network) — additional reach beyond YouTube numbers
+- **Demographics:** 95.9% male · 3.9% female
+- **Age bands:** 30.7% age 45-54 · 29.7% age 55-64 · 21% age 65+ · 13.8% age 35-44 (the 45-64 sweet spot is 60% of the audience)
+- **Geography:** 85% USA · 4% Canada · the rest international
 
-## Ad inventory
+## Audience interests (all "VERY HIGH")
 
-- Pre-roll (:15-:30)
-- Mid-roll (:60-:90, host-read preferred)
-- Post-roll (:30)
-- Full episode presenting sponsor
-- YouTube integration (pinned comment, end card)
-- Custom branded segments (e.g. "The Pressbox Play of the Week, brought to you by...")
-- Live event / game-day activation
+- American Football Fans
+- Basketball Fans
+- Baseball Fans
+- Documentary & Nonfiction TV
+- Rock Music Fans
 
-## Social proof
+## Audience shopping interests
 
-- **Notable guests / episodes:** [FILL IN — top 3-5 that land for sponsors]
-- **Press / features:** [FILL IN]
-- **Partnerships to date:** [FILL IN]
+- TV Streaming
+- Credit & Lending
+- Home Purchase
+- Subscriptions
+- Mortgage
 
-## Rates — starting point
+## Why this audience matters for sponsors
 
-Same rule as One54: lead with fit, numbers come after interest is real.
+- **They're loyal:** 66% returning viewers means recurring exposure for sponsors, not one-shot impressions
+- **They're attentive:** 7+ minute average view duration and 51.7% completion rate — they don't skip
+- **They show up on purpose:** "This audience shows up every week on purpose." Habit + trust + intentionality.
+- **They have buying power:** 45-64 male demo shopping for home, mortgage, credit, streaming subscriptions — high-LTV consumers in their highest-earning years
 
-- **Single episode mid-roll:** [FILL IN]
-- **4-episode package:** [FILL IN]
-- **Season presenting sponsor:** [FILL IN]
-- **Custom integrations:** negotiated per deal
+## Format & distribution
+
+- Long-form interview + narrative episodes (full episodes only)
+- Released weekly
+- Distributed on YouTube, TikTok, Spotify, Apple Podcasts via Blue Wire Network
+
+## Partnership options
+
+- **Episode Integration** — pre-roll, mid-roll, or post-roll host read · custom promo code + vanity URL · show notes inclusion
+- **Presenting Sponsor** — exclusive presenting credit · multi-placement per episode · social + YouTube card tags
+- **Custom Segment** — branded recurring segment · co-developed content angle · full social amplification
 
 ## Positioning — what to say in a pitch
 
-- **Do say:** "press-box credibility," "story-driven, not take-driven," "reaches athletes, agents, and sports-industry decision-makers"
-- **Don't say:** hot-take language, generic "sports fans" (everyone claims that)
-- **Always:** tie the sponsor's product to a specific story arc, athlete narrative, or sports-business angle — see `pressbox-target-sponsors.md`
+- **Do say:** "press-box credibility," "story-driven, not take-driven," "the new 30-for-30 (per The Hollywood Reporter)," "one of the most credible sports voices alive," "audience that shows up every week on purpose," "7+ minute attention spans," "Top 25% of Blue Wire Network"
+- **Don't say:** generic "sports fans" reach claims (everyone has those), hot-take language, anything that positions Pressbox as just another sports podcast
+- **Always:** tie the sponsor's product to a specific shopping interest (credit & lending, home purchase, streaming, subscriptions) or a specific narrative arc Pearlman has covered
 
-## Agent instructions
+## Voice & tone
+
+- Confident, journalistic, specific — never breathless or hype-driven
+- Lean into the credibility: "Pearlman wrote the books on the Showtime Lakers" carries more weight than any reach number
+- The audience watches sports their whole life — talk to them like adults who already know the game
+- Don't over-explain why a sports podcast matters. The Hollywood Reporter quote does that work for you.
+
+## Agent instructions (Pressbox)
 
 When drafting outreach, the agent should:
-1. Reference one specific, recent thing about the sponsor (from web search — a new product launch, athlete partnership, campaign)
-2. Tie it to Pressbox's audience with a concrete sports-world angle
-3. Suggest one clear next step
-4. Tone: energetic, sports-forward, concise — per AGENTS.md
-5. Sign as Marquel Martin, 3point0 Labs
-6. Workspace colorway cue: orange (#f97316) — sports-forward visual identity
+1. Open with one specific, recent reference to the sponsor company (from web search context provided)
+2. Tie that reference to the Pressbox audience using a concrete data point — engagement, demographic, or shopping interest
+3. Reference one of the proof points (1.4M monthly views, "the new 30-for-30," Pearlman's book credentials, Top 25% Blue Wire) when it lands naturally
+4. Suggest one clear next step (15-min call, deck review)
+5. Maximum 3 short paragraphs
+6. Sign as Marquel Martin · 3point0 Labs
 
 ## Off-limits
 
-- No counterfeit/gray-market gear brands
-- No match-fixing adjacent services
-- No gambling products targeting minors
-- [FILL IN — any other exclusions]
+- No counterfeit / gray-market gear
+- No match-fixing-adjacent products
+- No predatory lenders or payday loan operators
+- Nothing that disrespects the audience's intelligence (Pearlman's brand is built on the opposite)
+
+## Contact
+
+- Partnership inquiries: marquel@3point0labs.io · randy@3point0labs.io
+- Network: Blue Wire
+
+---
+
+*Last updated: March 2026 — sourced from Press Box Chronicles Sponsorship Media Kit*
